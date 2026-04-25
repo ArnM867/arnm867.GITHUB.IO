@@ -622,6 +622,7 @@ function doLogin() {
   STATE.currentUser = username;
   loadUserToState(user);
   updateNavUser();
+  try { localStorage.setItem('muddmate_session', username); } catch(e) {}
   showPage('dashboard');
 }
 
@@ -646,6 +647,7 @@ function logOut() {
   STATE.customAssignments = [];
   STATE.customCourses = [];
   STATE.grammar = {};
+  try { localStorage.removeItem('muddmate_session'); } catch(e) {}
   document.getElementById('login-username').value = '';
   document.getElementById('login-password').value = '';
   document.getElementById('login-error').style.display = 'none';
@@ -1537,7 +1539,22 @@ async function openCourseDetail(courseId) {
 }
 
 // ═══ INIT ═══
-showPage('login');
+(function() {
+  try {
+    const saved = localStorage.getItem('muddmate_session');
+    if (saved) {
+      const user = getUser(saved);
+      if (user) {
+        STATE.currentUser = saved;
+        loadUserToState(user);
+        updateNavUser();
+        showPage('dashboard');
+        return;
+      }
+    }
+  } catch(e) {}
+  showPage('login');
+})();
 </script>
 
 <!-- ═══ REGISTER MODAL ═══ -->
