@@ -632,6 +632,7 @@ function doLogin() {
   STATE.currentUser = username;
   loadUserToState(user);
   updateNavUser();
+  saveCurrentUser();
   try { localStorage.setItem('muddmate_session', username); } catch(e) {}
   showPage('dashboard');
 }
@@ -1550,19 +1551,20 @@ async function openCourseDetail(courseId) {
 
 // ═══ INIT ═══
 (function() {
-  try {
-    const saved = localStorage.getItem('muddmate_session');
-    if (saved) {
-      const user = getUser(saved);
-      if (user) {
-        STATE.currentUser = saved;
-        loadUserToState(user);
-        updateNavUser();
-        showPage('dashboard');
-        return;
-      }
+  let saved = null;
+  try { saved = localStorage.getItem('muddmate_session'); } catch(e) {}
+  if (saved) {
+    const user = getUser(saved);
+    if (user) {
+      STATE.currentUser = saved;
+      loadUserToState(user);
+      updateNavUser();
+      showPage('dashboard');
+      return;
     }
-  } catch(e) {}
+    // Session points to a user that no longer exists — clean it up
+    try { localStorage.removeItem('muddmate_session'); } catch(e) {}
+  }
   showPage('login');
 })();
 </script>
