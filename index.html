@@ -239,6 +239,7 @@ input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
     <span class="nav-link active" onclick="showPage('dashboard')">Dashboard</span>
     <span class="nav-link" onclick="showPage('trees')">Lesson Trees</span>
     <span class="nav-link" onclick="showPage('grammar')">Course Setup</span>
+    <span class="nav-link" onclick="showPage('settings')">Settings</span>
     <div class="nav-user">
       <div class="nav-avatar" id="nav-initials">?</div>
       <span id="nav-name">Student</span>
@@ -256,50 +257,23 @@ input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
       <div class="login-tagline">Your academic autopilot — built for Harvey Mudd.</div>
 
       <div class="form-group">
-        <label>Canvas API Token</label>
-        <input type="password" id="login-token" placeholder="23350~xxxxxxxxxxxxxxxxxxxx" onkeydown="if(event.key==='Enter')doLogin()">
-        <div class="login-help">Generate at <a href="https://harveymuddcollege.instructure.com/profile/settings" target="_blank">Canvas → Account → Settings → New Access Token</a></div>
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
 
       <div class="form-group">
-        <label>Your name</label>
-        <input type="text" id="login-name" placeholder="Your name" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-
-      <div class="form-group">
-        <label>Anthropic API Key <span style="color:var(--muted);font-weight:400">(needed for AI features)</span></label>
-        <input type="password" id="login-apikey" placeholder="sk-ant-..." onkeydown="if(event.key==='Enter')doLogin()">
-        <div class="login-help">For AI task sequencing and course setup chat. Leave blank to use rule-based fallback.</div>
-      </div>
-
-      <div class="login-divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:.75rem">BACKEND (OPTIONAL)</div>
-
-      <div class="form-group">
-        <label>Backend URL</label>
-        <input type="text" id="login-backend" placeholder="https://your-backend.onrender.com" onkeydown="if(event.key==='Enter')doLogin()">
-        <div class="login-help">Deploy <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">backend/</code> to <a href="https://render.com" target="_blank">Render</a> — enables live Gradescope data.</div>
-      </div>
-
-      <div class="form-group">
-        <label>Gradescope Session Cookie</label>
-        <input type="password" id="login-gscookie" placeholder="_gradescope_session value" onkeydown="if(event.key==='Enter')doLogin()">
-        <div class="login-help">DevTools → Application → Cookies → gradescope.com → <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">_gradescope_session</code></div>
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
 
       <div class="login-error" id="login-error"></div>
-      <button class="btn btn-gold" style="width:100%" id="login-btn" onclick="doLogin()">Connect Canvas →</button>
+      <button class="btn btn-gold" style="width:100%" id="login-btn" onclick="doLogin()">Log in →</button>
 
-      <!-- Course picker — revealed after token connects -->
-      <div class="login-courses-wrap" id="login-courses-wrap">
-        <div class="login-divider"></div>
-        <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Select courses to track</div>
-        <div class="course-picker" id="login-course-picker"></div>
-        <button class="btn btn-gold" style="width:100%" onclick="finishLogin()">Go to dashboard →</button>
+      <div class="login-demo" style="margin-top:1rem">
+        <a onclick="openRegister()" style="cursor:pointer">Create account →</a>
       </div>
-
-      <div class="login-demo">
-        <a onclick="demoLogin()">Skip — load demo data</a>
+      <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:.75rem">
+        Test account: <strong style="color:var(--muted2)">test</strong> / <strong style="color:var(--muted2)">test</strong>
       </div>
     </div>
   </div>
@@ -424,6 +398,56 @@ input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
 </div>
 
 <!-- ═══════════════════════════════════════════
+     PAGE: SETTINGS
+════════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div style="padding:1.5rem;max-width:600px;margin:0 auto">
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:1.5rem">Settings</h2>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Canvas Integration</span></div>
+      <div style="padding:1.25rem">
+        <div class="form-group">
+          <label>Canvas API Token</label>
+          <input type="password" id="set-token" placeholder="23350~...">
+          <div class="login-help">Generate at <a href="https://harveymuddcollege.instructure.com/profile/settings" target="_blank">Canvas → Account → Settings → New Access Token</a></div>
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="syncCanvas(event)">Sync Canvas →</button>
+        <div id="set-sync-msg" style="font-size:12px;color:var(--green);margin-top:.5rem;display:none"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1.25rem">
+      <div class="card-header"><span class="card-title">AI Features</span></div>
+      <div style="padding:1.25rem">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Anthropic API Key</label>
+          <input type="password" id="set-apikey" placeholder="sk-ant-...">
+          <div class="login-help">For AI task sequencing and course setup chat. Leave blank for rule-based fallback.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1.25rem">
+      <div class="card-header"><span class="card-title">Backend (Optional)</span></div>
+      <div style="padding:1.25rem">
+        <div class="form-group">
+          <label>Backend URL</label>
+          <input type="text" id="set-backend" placeholder="https://your-backend.onrender.com">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Gradescope Session Cookie</label>
+          <input type="password" id="set-gscookie" placeholder="_gradescope_session value">
+          <div class="login-help">DevTools → Application → Cookies → gradescope.com</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-gold" onclick="saveSettings()">Save Settings</button>
+      <button class="btn btn-outline" onclick="logOut()">Log out</button>
+      <span id="set-msg" style="font-size:13px;color:var(--green);display:none">Saved ✓</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
      PAGE: COURSE DETAIL
 ════════════════════════════════════════════ -->
 <div class="page" id="page-course">
@@ -465,14 +489,101 @@ const STATE = {
   gsCookie: '',
   baseUrl: 'https://harveymuddcollege.instructure.com/api/v1',
   userName: '',
+  currentUser: null,
   courses: [],
   customCourses: [],
   customAssignments: [],
-  grammar: {},   // courseId → { structure, lectureDays, hwDueDay, hwOffset, gradescopeId, chatHistory, extracted }
+  grammar: {},
   assignments: [],
   currentCourse: null,
   checked: new Set(),
 };
+
+// ═══════════════════════════════════════════
+// USERS DB
+// ═══════════════════════════════════════════
+function makeTestAssignments() {
+  const d = (days, hour=23, min=59) => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() + days);
+    dt.setHours(hour, min, 0, 0);
+    return dt;
+  };
+  return [
+    {course:'Chemistry 042',   name:'Pre-Class 23',       due:d(1,8,0),   url:'https://www.gradescope.com/courses/1219840/assignments', source:'canvas'},
+    {course:'Physics 024',     name:'Pre-Lab 7',           due:d(2,23,59), url:'https://www.gradescope.com/courses/1217636/assignments', source:'canvas'},
+    {course:'Chemistry 042',   name:'Homework 11',         due:d(4,23,59), url:'https://www.gradescope.com/courses/1219840/assignments', source:'canvas'},
+    {course:'Physics 024',     name:'HW13',                due:d(5,16,0),  url:'https://www.gradescope.com/courses/1217636/assignments', source:'canvas'},
+    {course:'Math 73',         name:'Problem Set 9',       due:d(6,23,59), url:'https://harveymuddcollege.instructure.com', source:'canvas'},
+    {course:'Critical Inquiry',name:'Reading Response 5',  due:d(7,23,59), url:'https://harveymuddcollege.instructure.com', source:'canvas'},
+    {course:'Chem Lab 024',    name:'Lab Report 4',        due:d(9,23,59), url:'https://harveymuddcollege.instructure.com', source:'canvas'},
+  ];
+}
+
+const TEST_USER = {
+  name: 'Test User',
+  password: 'test',
+  canvasToken: '',
+  apiKey: '',
+  backendUrl: '',
+  gsCookie: '',
+  courses: [
+    {id:'3201', name:'Critical Inquiry', color:'#f5a623'},
+    {id:'3134', name:'Chemistry 042',    color:'#22c55e'},
+    {id:'3342', name:'Chem Lab 024',     color:'#e24b4a'},
+    {id:'3340', name:'Math 73',          color:'#60a5fa'},
+    {id:'3338', name:'Physics 024',      color:'#a78bfa'},
+  ],
+  customCourses: [],
+  grammar: {},
+};
+
+function loadUsersDB() {
+  try { return JSON.parse(localStorage.getItem('muddmate_users') || '{}'); } catch(e) { return {}; }
+}
+function saveUsersDB(db) {
+  try { localStorage.setItem('muddmate_users', JSON.stringify(db)); } catch(e) {}
+}
+function getUser(username) {
+  if (username === 'test') return { ...TEST_USER, customAssignments: makeTestAssignments() };
+  return loadUsersDB()[username] || null;
+}
+function loadUserToState(user) {
+  STATE.token             = user.canvasToken || '';
+  STATE.apiKey            = user.apiKey || '';
+  STATE.backendUrl        = user.backendUrl || '';
+  STATE.gsCookie          = user.gsCookie || '';
+  STATE.userName          = user.name || 'Student';
+  STATE.courses           = (user.courses || []).map(c => ({...c, selected:true}));
+  STATE.customCourses     = user.customCourses || [];
+  STATE.customAssignments = (user.customAssignments || []).map(a => ({...a, due: new Date(a.due)}));
+  STATE.grammar           = user.grammar || {};
+  const now = new Date();
+  STATE.assignments = STATE.customAssignments.filter(a => {
+    const due = a.due instanceof Date ? a.due : new Date(a.due);
+    return due > now;
+  });
+  STATE.checked = new Set();
+}
+function saveCurrentUser() {
+  if (!STATE.currentUser || STATE.currentUser === 'test') return;
+  const db = loadUsersDB();
+  db[STATE.currentUser] = {
+    ...(db[STATE.currentUser] || {}),
+    name: STATE.userName,
+    canvasToken: STATE.token,
+    apiKey: STATE.apiKey,
+    backendUrl: STATE.backendUrl,
+    gsCookie: STATE.gsCookie,
+    courses: STATE.courses,
+    customCourses: STATE.customCourses,
+    customAssignments: STATE.customAssignments.map(a => ({
+      ...a, due: a.due instanceof Date ? a.due.toISOString() : a.due
+    })),
+    grammar: STATE.grammar,
+  };
+  saveUsersDB(db);
+}
 
 const COURSE_COLORS = ['#f5a623','#22c55e','#e24b4a','#60a5fa','#a78bfa','#f472b6','#34d399','#fb923c'];
 
@@ -491,85 +602,33 @@ function showPage(id) {
   const showNav = id !== 'login';
   document.getElementById('main-nav').style.display = showNav ? 'flex' : 'none';
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const map = {dashboard:0, trees:1, grammar:2};
+  const map = {dashboard:0, trees:1, grammar:2, settings:3};
   if (map[id] !== undefined) document.querySelectorAll('.nav-link')[map[id]]?.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'grammar') renderGrammar();
-  if (id === 'trees') renderTrees();
+  if (id === 'grammar')   renderGrammar();
+  if (id === 'trees')     renderTrees();
+  if (id === 'settings')  renderSettings();
 }
 
 // ═══════════════════════════════════════════
-// LOGIN
+// LOGIN / AUTH
 // ═══════════════════════════════════════════
-async function doLogin() {
-  const token = document.getElementById('login-token').value.trim();
-  const name  = document.getElementById('login-name').value.trim();
-  const apiKey = document.getElementById('login-apikey').value.trim();
-  const errEl = document.getElementById('login-error');
-  const btn   = document.getElementById('login-btn');
-
-  if (!token) { showLoginError('Please paste your Canvas API token.'); return; }
-
-  btn.innerHTML = '<span class="spin-inline"></span>Connecting…';
-  btn.disabled = true;
-  errEl.style.display = 'none';
-
-  STATE.token      = token;
-  STATE.apiKey     = apiKey;
-  STATE.backendUrl = (document.getElementById('login-backend').value.trim()).replace(/\/$/, '');
-  STATE.gsCookie   = document.getElementById('login-gscookie').value.trim();
-  STATE.userName   = name || 'Student';
-
-  try {
-    const res = await fetch(`${STATE.baseUrl}/courses?enrollment_state=active&per_page=50`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error('bad token');
-    const data = await res.json();
-    const filtered = data.filter(c => c.name &&
-      !c.name.includes('Title IX') && !c.name.includes('Orientation') &&
-      !c.name.includes('Core Skills') && !c.name.includes('Resources') && !c.name.includes('Preview'));
-    STATE.courses = filtered.map((c,i) => ({
-      id: String(c.id), name: c.name,
-      color: COURSE_COLORS[i % COURSE_COLORS.length], selected: true
-    }));
-    buildLoginCoursePicker();
-    document.getElementById('login-courses-wrap').style.display = 'block';
-    btn.innerHTML = 'Connect Canvas →';
-    btn.disabled = false;
-  } catch(e) {
-    showLoginError('Could not connect to Canvas — check your token and try again.');
-    btn.innerHTML = 'Connect Canvas →';
-    btn.disabled = false;
-  }
+function doLogin() {
+  const username = document.getElementById('login-username').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) { showLoginError('Enter username and password.'); return; }
+  const user = getUser(username);
+  if (!user || user.password !== password) { showLoginError('Invalid username or password.'); return; }
+  STATE.currentUser = username;
+  loadUserToState(user);
+  updateNavUser();
+  showPage('dashboard');
 }
 
 function showLoginError(msg) {
   const el = document.getElementById('login-error');
   el.textContent = msg;
   el.style.display = 'block';
-}
-
-function buildLoginCoursePicker() {
-  document.getElementById('login-course-picker').innerHTML = STATE.courses.map((c,i) => `
-    <div class="course-pick-item selected" id="lcp-${i}" onclick="toggleLoginCourse(${i})">
-      <input type="checkbox" checked id="lcb-${i}">
-      <div style="width:9px;height:9px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
-      <span class="course-pick-name">${c.name}</span>
-      <span class="course-pick-id">ID: ${c.id}</span>
-    </div>`).join('');
-}
-
-function toggleLoginCourse(i) {
-  STATE.courses[i].selected = !STATE.courses[i].selected;
-  document.getElementById(`lcp-${i}`).classList.toggle('selected', STATE.courses[i].selected);
-  document.getElementById(`lcb-${i}`).checked = STATE.courses[i].selected;
-}
-
-function finishLogin() {
-  STATE.courses = STATE.courses.filter(c => c.selected);
-  updateNavUser();
-  showPage('dashboard');
 }
 
 function updateNavUser() {
@@ -579,18 +638,94 @@ function updateNavUser() {
   document.getElementById('dash-name').textContent = STATE.userName;
 }
 
-function demoLogin() {
-  STATE.token   = '23350~P3WWL4ZhazN3LGnueK2WnRWcnvLzT8wFv6fXw6uGQEtBUAtZ77uBWfLrEXBxWWZt';
-  STATE.userName = 'Arushi Malik';
-  STATE.courses  = [
-    {id:'3201',name:'Critical Inquiry',color:'#f5a623',selected:true},
-    {id:'3134',name:'Chemistry 042',color:'#22c55e',selected:true},
-    {id:'3342',name:'Chem Lab 024',color:'#e24b4a',selected:true},
-    {id:'3340',name:'Math 73',color:'#60a5fa',selected:true},
-    {id:'3338',name:'Physics 024',color:'#a78bfa',selected:true},
-  ];
+function logOut() {
+  STATE.currentUser = null;
+  STATE.token = '';
+  STATE.courses = [];
+  STATE.assignments = [];
+  STATE.customAssignments = [];
+  STATE.customCourses = [];
+  STATE.grammar = {};
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  showPage('login');
+}
+
+function openRegister() {
+  ['reg-username','reg-name','reg-password','reg-confirm'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('reg-error').style.display = 'none';
+  document.getElementById('modal-register').classList.add('open');
+  setTimeout(() => document.getElementById('reg-username').focus(), 50);
+}
+
+function submitRegister() {
+  const username = document.getElementById('reg-username').value.trim().toLowerCase();
+  const name     = document.getElementById('reg-name').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm  = document.getElementById('reg-confirm').value;
+  const errEl    = document.getElementById('reg-error');
+  if (!username || !name || !password) { errEl.textContent='All fields required.'; errEl.style.display='block'; return; }
+  if (password !== confirm)            { errEl.textContent='Passwords do not match.'; errEl.style.display='block'; return; }
+  if (username === 'test')             { errEl.textContent='Username "test" is reserved.'; errEl.style.display='block'; return; }
+  const db = loadUsersDB();
+  if (db[username]) { errEl.textContent='Username already taken.'; errEl.style.display='block'; return; }
+  db[username] = { name, password, canvasToken:'', apiKey:'', backendUrl:'', gsCookie:'',
+                   courses:[], customCourses:[], customAssignments:[], grammar:{} };
+  saveUsersDB(db);
+  closeModal('modal-register');
+  STATE.currentUser = username;
+  loadUserToState(db[username]);
   updateNavUser();
   showPage('dashboard');
+}
+
+function renderSettings() {
+  document.getElementById('set-token').value   = STATE.token;
+  document.getElementById('set-apikey').value  = STATE.apiKey;
+  document.getElementById('set-backend').value = STATE.backendUrl;
+  document.getElementById('set-gscookie').value = STATE.gsCookie;
+  document.getElementById('set-msg').style.display = 'none';
+  document.getElementById('set-sync-msg').style.display = 'none';
+}
+
+function saveSettings() {
+  STATE.token      = document.getElementById('set-token').value.trim();
+  STATE.apiKey     = document.getElementById('set-apikey').value.trim();
+  STATE.backendUrl = document.getElementById('set-backend').value.trim().replace(/\/$/, '');
+  STATE.gsCookie   = document.getElementById('set-gscookie').value.trim();
+  saveCurrentUser();
+  const msg = document.getElementById('set-msg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2000);
+}
+
+async function syncCanvas(e) {
+  const token = document.getElementById('set-token').value.trim();
+  const msg   = document.getElementById('set-sync-msg');
+  if (!token) { msg.textContent = 'Enter a Canvas token first.'; msg.style.color='var(--red)'; msg.style.display='block'; return; }
+  STATE.token = token;
+  const btn = e.target;
+  btn.textContent = 'Syncing…';
+  btn.disabled = true;
+  msg.style.display = 'none';
+  try {
+    const fetched = await fetchAllAssignments();
+    STATE.assignments = fetched;
+    saveCurrentUser();
+    msg.textContent = `Synced ${fetched.length} assignments ✓`;
+    msg.style.color = 'var(--green)';
+    msg.style.display = 'block';
+    btn.textContent = 'Sync Canvas →';
+  } catch(err) {
+    msg.textContent = 'Sync failed — check your token.';
+    msg.style.color = 'var(--red)';
+    msg.style.display = 'block';
+    btn.textContent = 'Sync Canvas →';
+  }
+  btn.disabled = false;
 }
 
 // ═══════════════════════════════════════════
@@ -630,6 +765,7 @@ function submitAddCourse() {
   STATE.courses.push(course);
   STATE.customCourses.push(course);
   STATE.grammar[id] = { chatHistory: [], extracted: {} };
+  saveCurrentUser();
   closeModal('modal-add-course');
   renderDashboard();
 }
@@ -677,7 +813,7 @@ function submitAddAssignment() {
 
   STATE.customAssignments.push(assignment);
   STATE.assignments = [...STATE.assignments, assignment].sort((a, b) => a.due - b.due);
-
+  saveCurrentUser();
   closeModal('modal-add-assignment');
   renderDashboard();
 }
@@ -1124,7 +1260,6 @@ async function renderDashboard() {
       <span style="color:var(--gold);font-size:13px">→</span>
     </div>`).join('');
 
-  STATE.assignments = await fetchAllAssignments();
   const tasks = await generateSequencedTasks(STATE.assignments);
 
   const total  = tasks.length;
@@ -1296,7 +1431,6 @@ async function renderTrees() {
     return;
   }
   grid.innerHTML = '<div class="loading-msg"><div class="spin"></div>Loading trees…</div>';
-  if (!STATE.assignments.length) STATE.assignments = await fetchAllAssignments();
 
   grid.innerHTML = STATE.courses.map(c => {
     const sorted = STATE.assignments.filter(a=>a.course===c.name).sort((a,b)=>new Date(a.due)-new Date(b.due));
@@ -1405,6 +1539,32 @@ async function openCourseDetail(courseId) {
 // ═══ INIT ═══
 showPage('login');
 </script>
+
+<!-- ═══ REGISTER MODAL ═══ -->
+<div class="modal-overlay" id="modal-register" onclick="if(event.target===this)closeModal('modal-register')">
+  <div class="modal">
+    <div class="modal-title">Create Account</div>
+    <button class="modal-close" onclick="closeModal('modal-register')">✕</button>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="reg-username" placeholder="choose a username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="reg-name" placeholder="Full name">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Confirm password</label>
+      <input type="password" id="reg-confirm" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitRegister()">
+    </div>
+    <div id="reg-error" class="modal-error"></div>
+    <button class="btn btn-gold" style="width:100%" onclick="submitRegister()">Create Account →</button>
+  </div>
+</div>
 
 <!-- ═══ ADD COURSE MODAL ═══ -->
 <div class="modal-overlay" id="modal-add-course" onclick="if(event.target===this)closeModal('modal-add-course')">
