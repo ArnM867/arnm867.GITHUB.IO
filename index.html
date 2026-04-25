@@ -223,8 +223,10 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
 .color-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
 .color-swatch:hover{transform:scale(1.15)}
 .color-swatch.selected{border-color:#fff;transform:scale(1.1)}
-input[type=date],input[type=time]{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);font-size:14px;width:100%;outline:none;transition:border-color .15s;color-scheme:dark}
-input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
+input[type=date],input[type=time],input[type=number]{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);font-size:14px;width:100%;outline:none;transition:border-color .15s;color-scheme:dark}
+input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-color:var(--gold)}
+.atype-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap}
+.weight-badge{font-size:10px;font-weight:700;color:var(--muted2);background:var(--bg3);border-radius:5px;padding:2px 6px;white-space:nowrap}
 .modal-error{color:var(--red);font-size:13px;margin-bottom:1rem;display:none}
 </style>
 </head>
@@ -603,6 +605,21 @@ const GRADESCOPE_FALLBACK = [
   {course:'Physics 024',name:'HW12',due:'2026-05-01T16:00:00-07:00',url:'https://www.gradescope.com/courses/1217636/assignments',source:'gradescope'},
 ];
 
+const ASSIGNMENT_TYPES = {
+  hw:      { label:'Homework',  icon:'📝', color:'var(--amber)' },
+  quiz:    { label:'Quiz',      icon:'📋', color:'var(--blue)' },
+  exam:    { label:'Exam',      icon:'📄', color:'var(--red)' },
+  lab:     { label:'Lab',       icon:'🧪', color:'var(--green)' },
+  project: { label:'Project',   icon:'🏗️', color:'var(--purple)' },
+  reading: { label:'Reading',   icon:'📖', color:'var(--blue)' },
+  other:   { label:'Other',     icon:'📌', color:'var(--muted2)' },
+};
+function atypeBadge(type) {
+  const t = ASSIGNMENT_TYPES[type];
+  if (!t) return '';
+  return `<span class="atype-badge" style="background:${t.color}22;color:${t.color}">${t.icon} ${t.label}</span>`;
+}
+
 // ═══════════════════════════════════════════
 // ROUTING
 // ═══════════════════════════════════════════
@@ -784,8 +801,10 @@ function submitAddCourse() {
 }
 
 function openAddAssignment(preselectedCourseId) {
-  document.getElementById('aa-name').value = '';
-  document.getElementById('aa-url').value = '';
+  document.getElementById('aa-name').value   = '';
+  document.getElementById('aa-url').value    = '';
+  document.getElementById('aa-type').value   = '';
+  document.getElementById('aa-weight').value = '';
   document.getElementById('aa-error').style.display = 'none';
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -799,12 +818,15 @@ function openAddAssignment(preselectedCourseId) {
 }
 
 function submitAddAssignment() {
-  const name    = document.getElementById('aa-name').value.trim();
+  const name     = document.getElementById('aa-name').value.trim();
   const courseId = document.getElementById('aa-course').value;
-  const date    = document.getElementById('aa-date').value;
-  const time    = document.getElementById('aa-time').value || '23:59';
-  const url     = document.getElementById('aa-url').value.trim();
-  const errEl   = document.getElementById('aa-error');
+  const date     = document.getElementById('aa-date').value;
+  const time     = document.getElementById('aa-time').value || '23:59';
+  const url      = document.getElementById('aa-url').value.trim();
+  const type     = document.getElementById('aa-type').value || null;
+  const weightRaw = document.getElementById('aa-weight').value;
+  const weight   = weightRaw !== '' ? parseFloat(weightRaw) : null;
+  const errEl    = document.getElementById('aa-error');
 
   if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
   if (!date) { errEl.textContent = 'Due date is required.'; errEl.style.display = 'block'; return; }
@@ -822,6 +844,8 @@ function submitAddAssignment() {
     url: url || '#',
     source: 'custom',
     custom: true,
+    type,
+    weight,
   };
 
   STATE.customAssignments.push(assignment);
@@ -1215,7 +1239,7 @@ Rules:
         sequence: seq.action || a.name,
         timeStr: seq.timeLeft || fmt(a.hours_left),
         dueStr: seq.dueStr || fmtDueDate(due),
-        type: 'ai-sequenced'
+        seqType: 'ai-sequenced'
       };
     });
   } catch(e) {
@@ -1236,7 +1260,7 @@ function fallbackSequencing(assignments) {
       sequence = `Attend lecture first then complete ${a.name}`;
     else if (structure === 'lab-based' && a.name.toLowerCase().includes('pre-lab'))
       sequence = `Read lab manual then complete ${a.name} before lab`;
-    return { ...a, sequence, timeStr: fmt(a.hours_left), dueStr: fmtDueDate(due), type: 'fallback' };
+    return { ...a, sequence, timeStr: fmt(a.hours_left), dueStr: fmtDueDate(due), seqType: 'fallback' };
   });
 }
 
@@ -1301,12 +1325,16 @@ async function renderDashboard() {
   const tasksEl = document.getElementById('dash-tasks');
   if (!tasks.length) { tasksEl.innerHTML='<div class="loading-msg">Nothing due soon — you\'re ahead!</div>'; return; }
   tasksEl.innerHTML = tasks.map((t,i) => {
-    const uc = urgClass(t.hours_left);
+    const uc    = urgClass(t.hours_left);
     const color = STATE.courses.find(c=>c.name===t.course)?.color || '#888';
+    const badge = t.type ? atypeBadge(t.type) : '';
+    const wt    = t.weight != null ? `<span class="weight-badge">${t.weight}%</span>` : '';
     return `<a class="task-item" href="${t.url}" target="_blank">
       <span class="task-num">${i+1}</span>
       <div class="task-info">
-        <div class="task-name">${t.sequence}</div>
+        <div class="task-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span>${t.sequence}</span>${badge}${wt}
+        </div>
         <div class="task-sub">
           <span style="color:${color};font-weight:700">${t.course}</span>
           <span style="color:var(--muted)">·</span>
@@ -1625,6 +1653,25 @@ async function openCourseDetail(courseId) {
     <div class="form-group">
       <label>Course</label>
       <select id="aa-course"></select>
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label>Type</label>
+        <select id="aa-type">
+          <option value="">— select —</option>
+          <option value="hw">📝 Homework</option>
+          <option value="quiz">📋 Quiz</option>
+          <option value="exam">📄 Exam</option>
+          <option value="lab">🧪 Lab</option>
+          <option value="project">🏗️ Project</option>
+          <option value="reading">📖 Reading</option>
+          <option value="other">📌 Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Grade weight <span style="color:var(--muted);font-weight:400">(%)</span></label>
+        <input type="number" id="aa-weight" placeholder="e.g. 10" min="0" max="100" step="0.1">
+      </div>
     </div>
     <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
