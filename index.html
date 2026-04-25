@@ -211,6 +211,21 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
 
 /* scrollbar */
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ═══ MODALS ═══ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:420px;position:relative}
+.modal-title{font-size:17px;font-weight:800;margin-bottom:1.5rem}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted2);font-size:18px;cursor:pointer;line-height:1;padding:4px}
+.modal-close:hover{color:var(--text)}
+.color-swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.color-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.selected{border-color:#fff;transform:scale(1.1)}
+input[type=date],input[type=time]{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);font-size:14px;width:100%;outline:none;transition:border-color .15s;color-scheme:dark}
+input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
+.modal-error{color:var(--red);font-size:13px;margin-bottom:1rem;display:none}
 </style>
 </head>
 <body>
@@ -307,7 +322,10 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">Courses</span></div>
+        <div class="card-header">
+          <span class="card-title">Courses</span>
+          <button class="btn btn-outline btn-sm" onclick="openAddCourse()">+ Course</button>
+        </div>
         <div style="padding:0 1.25rem">
           <div class="course-list-sidebar" id="dash-course-list"></div>
         </div>
@@ -319,6 +337,7 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
       <div class="card">
         <div class="card-header">
           <span class="card-title">Today's plan</span>
+          <button class="btn btn-outline btn-sm" onclick="openAddAssignment()">+ Assignment</button>
         </div>
         <div class="goals-progress-wrap">
           <div class="prog-track"><div class="prog-fill prog-fill-gold" id="dash-prog" style="width:0%"></div></div>
@@ -448,6 +467,8 @@ const STATE = {
   baseUrl: 'https://harveymuddcollege.instructure.com/api/v1',
   userName: '',
   courses: [],
+  customCourses: [],
+  customAssignments: [],
   grammar: {},   // courseId → { structure, lectureDays, hwDueDay, hwOffset, gradescopeId, chatHistory, extracted }
   assignments: [],
   currentCourse: null,
@@ -571,6 +592,95 @@ function demoLogin() {
   ];
   updateNavUser();
   showPage('dashboard');
+}
+
+// ═══════════════════════════════════════════
+// ADD COURSE / ASSIGNMENT
+// ═══════════════════════════════════════════
+let _pickedColor = COURSE_COLORS[0];
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function openAddCourse() {
+  _pickedColor = COURSE_COLORS[STATE.courses.length % COURSE_COLORS.length];
+  document.getElementById('ac-name').value = '';
+  document.getElementById('ac-error').style.display = 'none';
+  document.getElementById('ac-colors').innerHTML = COURSE_COLORS.map(c =>
+    `<div class="color-swatch${c===_pickedColor?' selected':''}" data-color="${c}"
+      style="background:${c}" onclick="selectSwatch('${c}')"></div>`
+  ).join('');
+  document.getElementById('modal-add-course').classList.add('open');
+  setTimeout(() => document.getElementById('ac-name').focus(), 50);
+}
+
+function selectSwatch(color) {
+  _pickedColor = color;
+  document.querySelectorAll('#ac-colors .color-swatch').forEach(s =>
+    s.classList.toggle('selected', s.dataset.color === color)
+  );
+}
+
+function submitAddCourse() {
+  const name = document.getElementById('ac-name').value.trim();
+  const errEl = document.getElementById('ac-error');
+  if (!name) { errEl.textContent = 'Course name is required.'; errEl.style.display = 'block'; return; }
+  const id = 'custom-' + Date.now();
+  const course = { id, name, color: _pickedColor, selected: true, custom: true };
+  STATE.courses.push(course);
+  STATE.customCourses.push(course);
+  STATE.grammar[id] = { chatHistory: [], extracted: {} };
+  closeModal('modal-add-course');
+  renderDashboard();
+}
+
+function openAddAssignment() {
+  document.getElementById('aa-name').value = '';
+  document.getElementById('aa-url').value = '';
+  document.getElementById('aa-error').style.display = 'none';
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('aa-date').value = tomorrow.toISOString().slice(0, 10);
+  document.getElementById('aa-time').value = '23:59';
+  document.getElementById('aa-course').innerHTML = STATE.courses.map(c =>
+    `<option value="${c.id}">${c.name}</option>`
+  ).join('');
+  document.getElementById('modal-add-assignment').classList.add('open');
+  setTimeout(() => document.getElementById('aa-name').focus(), 50);
+}
+
+function submitAddAssignment() {
+  const name    = document.getElementById('aa-name').value.trim();
+  const courseId = document.getElementById('aa-course').value;
+  const date    = document.getElementById('aa-date').value;
+  const time    = document.getElementById('aa-time').value || '23:59';
+  const url     = document.getElementById('aa-url').value.trim();
+  const errEl   = document.getElementById('aa-error');
+
+  if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
+  if (!date) { errEl.textContent = 'Due date is required.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+
+  const course = STATE.courses.find(c => c.id === courseId);
+  const due = new Date(`${date}T${time}`);
+  const now = new Date();
+
+  const assignment = {
+    name,
+    course: course?.name || courseId,
+    due,
+    hours_left: (due - now) / 3600000,
+    url: url || '#',
+    source: 'custom',
+    custom: true,
+  };
+
+  STATE.customAssignments.push(assignment);
+  STATE.assignments = [...STATE.assignments, assignment].sort((a, b) => a.due - b.due);
+
+  closeModal('modal-add-assignment');
+  renderDashboard();
 }
 
 // ═══════════════════════════════════════════
@@ -893,6 +1003,12 @@ async function fetchAllAssignments() {
 
   for (const a of GRADESCOPE_FALLBACK) {
     const due = new Date(a.due);
+    const hours_left = (due - now) / 3600000;
+    if (hours_left > 0) all.push({...a, due, hours_left});
+  }
+
+  for (const a of STATE.customAssignments) {
+    const due = a.due instanceof Date ? a.due : new Date(a.due);
     const hours_left = (due - now) / 3600000;
     if (hours_left > 0) all.push({...a, due, hours_left});
   }
@@ -1286,5 +1402,56 @@ async function openCourseDetail(courseId) {
 // ═══ INIT ═══
 showPage('login');
 </script>
+
+<!-- ═══ ADD COURSE MODAL ═══ -->
+<div class="modal-overlay" id="modal-add-course" onclick="if(event.target===this)closeModal('modal-add-course')">
+  <div class="modal">
+    <div class="modal-title">Add Course</div>
+    <button class="modal-close" onclick="closeModal('modal-add-course')">✕</button>
+    <div class="form-group">
+      <label>Course name</label>
+      <input type="text" id="ac-name" placeholder="e.g. CS 101" onkeydown="if(event.key==='Enter')submitAddCourse()">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-swatches" id="ac-colors"></div>
+    </div>
+    <div id="ac-error" class="modal-error"></div>
+    <button class="btn btn-gold" style="width:100%" onclick="submitAddCourse()">Add Course →</button>
+  </div>
+</div>
+
+<!-- ═══ ADD ASSIGNMENT MODAL ═══ -->
+<div class="modal-overlay" id="modal-add-assignment" onclick="if(event.target===this)closeModal('modal-add-assignment')">
+  <div class="modal">
+    <div class="modal-title">Add Assignment</div>
+    <button class="modal-close" onclick="closeModal('modal-add-assignment')">✕</button>
+    <div class="form-group">
+      <label>Assignment name</label>
+      <input type="text" id="aa-name" placeholder="e.g. Problem Set 5" onkeydown="if(event.key==='Enter')submitAddAssignment()">
+    </div>
+    <div class="form-group">
+      <label>Course</label>
+      <select id="aa-course"></select>
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label>Due date</label>
+        <input type="date" id="aa-date">
+      </div>
+      <div>
+        <label>Due time</label>
+        <input type="time" id="aa-time" value="23:59">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>URL <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input type="text" id="aa-url" placeholder="https://...">
+    </div>
+    <div id="aa-error" class="modal-error"></div>
+    <button class="btn btn-gold" style="width:100%" onclick="submitAddAssignment()">Add Assignment →</button>
+  </div>
+</div>
+
 </body>
 </html>
