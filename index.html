@@ -174,6 +174,22 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
 .summary-field-val{font-size:13px;font-weight:600;color:var(--text);margin-top:1px}
 .summary-field-val.unknown{color:var(--muted);font-weight:400;font-style:italic}
 .summary-save-btn{margin-top:auto;padding-top:1rem}
+/* course flow sequence */
+.flow-sequence{display:flex;flex-direction:column;align-items:center;gap:0;padding:.5rem 0}
+.flow-seq-node{display:flex;flex-direction:column;align-items:center}
+.flow-seq-connector{width:2px;height:20px;background:var(--border)}
+.flow-seq-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid}
+.flow-seq-circle.preclass{background:rgba(96,165,250,.12);border-color:var(--blue)}
+.flow-seq-circle.lecture{background:rgba(167,139,250,.12);border-color:var(--purple)}
+.flow-seq-circle.hw{background:rgba(245,166,35,.12);border-color:var(--gold)}
+.flow-seq-circle.lab{background:rgba(34,197,94,.12);border-color:var(--green)}
+.flow-seq-circle.reading{background:rgba(96,165,250,.12);border-color:var(--blue)}
+.flow-seq-circle.quiz{background:rgba(226,75,74,.12);border-color:var(--red)}
+.flow-seq-circle.other{background:var(--bg3);border-color:var(--border)}
+.flow-seq-label{font-size:10px;font-weight:600;color:var(--text);margin-top:3px;text-align:center}
+.flow-seq-timing{font-size:9px;color:var(--muted2);margin-top:1px;text-align:center}
+/* implied tree nodes */
+.ptree-implied{opacity:.38}
 
 /* ═══ PAGE: COURSE DETAIL ═══ */
 #page-course{padding:1.5rem}
@@ -601,7 +617,7 @@ function openGrammarCourse(i) {
         </div>
         <div class="grammar-summary-panel" id="grammar-summary-${c.id}">
           <div class="summary-panel-title">Understood so far</div>
-          ${renderGrammarSummary(STATE.grammar[c.id].extracted)}
+          ${renderGrammarSummary(STATE.grammar[c.id].extracted, STATE.grammar[c.id].courseFlow)}
           <div class="summary-save-btn">
             <button class="btn btn-gold" style="width:100%;font-size:13px" onclick="showPage('dashboard')">Save & go to dashboard →</button>
           </div>
@@ -661,24 +677,36 @@ async function sendGrammarMsg(courseId) {
 
   try {
     const c = STATE.courses.find(c => c.id === courseId);
-    const system = `You are MuddMate, an academic assistant helping a Harvey Mudd College student configure their course "${c.name}" so an AI agent can build smart, sequenced daily task lists.
+    const system = `You are MuddMate, an academic assistant helping a Harvey Mudd College student configure their course "${c.name}" so an AI agent can build smart, sequenced daily task lists and lesson trees.
 
-Your job is to learn the course structure through friendly conversation and extract these fields:
+Your job is to learn the course structure through friendly conversation and extract two things:
+
+1. Grammar fields:
 - structure: one of "lecture-then-preclass", "preclass-then-lecture", "hw-only", "lab-based"
 - lectureDays: array from ["Mon","Tue","Wed","Thu","Fri"]
 - hwDueDay: day name, e.g. "Wednesday"
 - hwOffset: integer — how many days back HW covers (default 3)
 - gradescopeId: Gradescope course ID string if mentioned
 
+2. courseFlow: an ordered array describing the weekly activity sequence. Each step:
+- step: integer (1-based)
+- type: "preclass" | "lecture" | "hw" | "lab" | "reading" | "quiz" | "other"
+- label: short name shown in the lesson tree (e.g. "Pre-class reading", "Attend lecture", "Submit HW")
+- icon: single emoji for this activity
+- timing: when it happens (e.g. "before lecture", "MWF", "due Wednesday 11:59pm")
+- namePattern: regex pattern matching Canvas assignment names for this type (e.g. "pre.?class|pre-class" for preclass, "hw|homework" for hw, "lab" for lab). Leave empty string for implied steps like lectures that have no Canvas assignment.
+
 Current extracted grammar: ${JSON.stringify(g.extracted)}
+Current courseFlow: ${JSON.stringify(g.courseFlow || [])}
 
 Respond with ONLY a JSON object — no markdown, no prose outside the JSON:
 {
   "message": "your friendly conversational reply (may use basic HTML like <strong>)",
-  "grammar": { ...fields you are now confident about, omit uncertain ones }
+  "grammar": { ...fields you are now confident about, omit uncertain ones },
+  "courseFlow": [ ...complete updated flow array with ALL steps you know so far, empty array if unsure ]
 }
 
-Keep replies concise (2–3 sentences). If you have enough info, confirm what you understood and encourage the student to save. Ask follow-ups only for fields you are missing.`;
+Keep replies concise (2–3 sentences). Once you have the flow, tell the student their lesson tree will update. Ask follow-ups only for missing pieces.`;
 
     const text = await callClaude(g.chatHistory, system, 500);
     const clean = text.replace(/```json|```/g, '').trim();
@@ -702,12 +730,17 @@ Keep replies concise (2–3 sentences). If you have enough info, confirm what yo
       if (ex.gradescopeId) g.gradescopeId = ex.gradescopeId;
     }
 
+    // Save courseFlow — drives lesson tree restructuring
+    if (Array.isArray(parsed.courseFlow) && parsed.courseFlow.length) {
+      g.courseFlow = parsed.courseFlow;
+    }
+
     // Refresh summary panel
     const summaryEl = document.getElementById(`grammar-summary-${courseId}`);
     if (summaryEl) {
       summaryEl.innerHTML = `
         <div class="summary-panel-title">Understood so far</div>
-        ${renderGrammarSummary(g.extracted)}
+        ${renderGrammarSummary(g.extracted, g.courseFlow)}
         <div class="summary-save-btn">
           <button class="btn btn-gold" style="width:100%;font-size:13px" onclick="showPage('dashboard')">Save & go to dashboard →</button>
         </div>`;
@@ -727,7 +760,7 @@ Keep replies concise (2–3 sentences). If you have enough info, confirm what yo
   document.getElementById(`chat-in-${courseId}`)?.focus();
 }
 
-function renderGrammarSummary(ex) {
+function renderGrammarSummary(ex, courseFlow) {
   const fields = [
     { key: 'structure', label: 'Structure', fmt: v => ({
       'lecture-then-preclass': 'Lecture → Pre-class check',
@@ -738,9 +771,9 @@ function renderGrammarSummary(ex) {
     { key: 'lectureDays', label: 'Meets', fmt: v => Array.isArray(v) ? v.join(', ') : v },
     { key: 'hwDueDay',    label: 'HW due', fmt: v => v },
     { key: 'hwOffset',    label: 'HW covers', fmt: v => `past ${v} days` },
-    { key: 'gradescopeId', label: 'Gradescope ID', fmt: v => v },
   ];
-  return fields.map(f => {
+
+  const fieldRows = fields.map(f => {
     const val = ex?.[f.key];
     const has = val !== null && val !== undefined && val !== '' && !(Array.isArray(val) && !val.length);
     return `<div class="summary-row">
@@ -751,6 +784,28 @@ function renderGrammarSummary(ex) {
       </div>
     </div>`;
   }).join('');
+
+  // Course flow visual sequence
+  let flowHtml = '';
+  if (courseFlow && courseFlow.length) {
+    const nodes = courseFlow.map((step, i) => `
+      <div class="flow-seq-node">
+        ${i > 0 ? '<div class="flow-seq-connector"></div>' : ''}
+        <div class="flow-seq-circle ${step.type||'other'}">${step.icon||'📋'}</div>
+        <div class="flow-seq-label">${step.label}</div>
+        <div class="flow-seq-timing">${step.timing||''}</div>
+      </div>`).join('');
+    flowHtml = `
+      <div style="margin-top:.5rem">
+        <div class="summary-panel-title" style="margin-bottom:.75rem">Course flow</div>
+        <div class="flow-sequence">${nodes}</div>
+        <div style="font-size:10px;color:var(--green);font-weight:600;margin-top:.75rem;text-align:center">✓ Lesson trees will use this flow</div>
+      </div>`;
+  } else {
+    flowHtml = `<div style="font-size:11px;color:var(--muted);margin-top:.5rem;text-align:center;font-style:italic">Describe your course to generate<br>a lesson tree flow</div>`;
+  }
+
+  return fieldRows + flowHtml;
 }
 
 // ═══════════════════════════════════════════
@@ -759,16 +814,6 @@ function renderGrammarSummary(ex) {
 async function fetchAllAssignments() {
   const now = new Date();
   let all = [];
-  let usedFlask = false;
-
-  try {
-    const res = await fetch('http://127.0.0.1:5000/api/assignments');
-    if (res.ok) {
-      const data = await res.json();
-      usedFlask = true;
-      return data.map(a => ({...a, due: new Date(a.due), hours_left: (new Date(a.due)-now)/3600000}));
-    }
-  } catch(e) {}
 
   if (STATE.token) {
     for (const c of STATE.courses) {
@@ -787,12 +832,10 @@ async function fetchAllAssignments() {
     }
   }
 
-  if (!usedFlask) {
-    for (const a of GRADESCOPE_FALLBACK) {
-      const due = new Date(a.due);
-      const hours_left = (due - now) / 3600000;
-      if (hours_left > 0) all.push({...a, due, hours_left});
-    }
+  for (const a of GRADESCOPE_FALLBACK) {
+    const due = new Date(a.due);
+    const hours_left = (due - now) / 3600000;
+    if (hours_left > 0) all.push({...a, due, hours_left});
   }
 
   const seen = new Set();
@@ -967,6 +1010,106 @@ async function renderDashboard() {
 // ═══════════════════════════════════════════
 // LESSON TREES
 // ═══════════════════════════════════════════
+
+// Classify an assignment against a courseFlow, return matched step or null
+function classifyAssignment(name, courseFlow) {
+  for (const step of courseFlow) {
+    if (!step.namePattern) continue;
+    try { if (new RegExp(step.namePattern, 'i').test(name)) return step; } catch(e) {}
+  }
+  return null;
+}
+
+// Build a node list that interleaves real assignments with implied flow steps
+function buildFlowTree(assignments, courseFlow) {
+  if (!courseFlow || !courseFlow.length) return null;
+  const sorted = [...assignments].sort((a,b) => new Date(a.due) - new Date(b.due));
+  const nodes = [];
+
+  sorted.forEach((a, idx) => {
+    const isNext = idx === 0;
+    const due    = a.due instanceof Date ? a.due : new Date(a.due);
+    const uc     = urgClass(a.hours_left);
+    const matched = classifyAssignment(a.name, courseFlow);
+    const myIdx  = matched ? courseFlow.indexOf(matched) : -1;
+
+    // Before the very first real assignment, prepend any implied prerequisites
+    if (idx === 0 && myIdx > 0) {
+      for (let s = 0; s < myIdx; s++) {
+        const prereq = courseFlow[s];
+        if (prereq.namePattern) continue; // skip if it matches real assignments (handled as its own node)
+        nodes.push({ kind: 'implied', step: prereq });
+      }
+    }
+
+    // The real assignment node
+    nodes.push({
+      kind: 'real',
+      icon: matched?.icon || '📋',
+      type: matched?.type || 'other',
+      label: a.name,
+      dueStr: due.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' + fmt(a.hours_left),
+      url: a.url,
+      isNext,
+      locked: !isNext,
+      uc,
+    });
+
+    // Between this and the next real assignment, insert implied steps from the flow
+    if (idx < sorted.length - 1) {
+      const nextA       = sorted[idx + 1];
+      const nextMatched = classifyAssignment(nextA.name, courseFlow);
+      const nextIdx     = nextMatched ? courseFlow.indexOf(nextMatched) : -1;
+
+      if (myIdx >= 0 && nextIdx >= 0) {
+        // Steps between myIdx and nextIdx (forward; wrap around for next cycle)
+        const len = courseFlow.length;
+        let s = (myIdx + 1) % len;
+        let guard = 0;
+        while (s !== nextIdx && guard < len) {
+          const step = courseFlow[s];
+          if (!step.namePattern) nodes.push({ kind: 'implied', step });
+          s = (s + 1) % len;
+          guard++;
+        }
+      }
+    }
+  });
+
+  return nodes.length ? nodes : null;
+}
+
+function renderFlowNodes(nodes) {
+  return nodes.map((n, i) => {
+    const connector = i > 0
+      ? `<div class="ptree-connector" style="background:${n.kind==='real'&&n.isNext?'var(--gold-border)':'var(--border)'}"></div>`
+      : '';
+
+    if (n.kind === 'implied') {
+      return `<div class="ptree-node ptree-implied">
+        ${connector}
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div class="ptree-circle locked" style="font-size:13px">${n.step.icon||'📋'}</div>
+          <div class="ptree-label muted">${n.step.label}</div>
+          <div class="ptree-date" style="color:var(--muted)">${n.step.timing||''}</div>
+        </div>
+      </div>`;
+    }
+
+    // Real assignment node
+    const circleClass = n.isNext ? 'active' : 'locked';
+    const dateColor   = n.isNext ? 'var(--gold)' : `var(--${n.uc})`;
+    return `<div class="ptree-node">
+      ${connector}
+      <a href="${n.url}" target="_blank" style="text-decoration:none;display:flex;flex-direction:column;align-items:center">
+        <div class="ptree-circle ${circleClass}" title="${n.label}">${n.isNext ? n.icon : '🔒'}</div>
+        <div class="ptree-label${n.locked?' muted':''}">${n.label}</div>
+        <div class="ptree-date" style="color:${dateColor}">${n.dueStr}</div>
+      </a>
+    </div>`;
+  }).join('');
+}
+
 async function renderTrees() {
   const grid = document.getElementById('trees-grid');
   if (!grid) return;
@@ -979,6 +1122,8 @@ async function renderTrees() {
 
   grid.innerHTML = STATE.courses.map(c => {
     const sorted = STATE.assignments.filter(a=>a.course===c.name).sort((a,b)=>new Date(a.due)-new Date(b.due));
+    const g = STATE.grammar[c.id] || {};
+
     if (!sorted.length) return `<div class="card">
       <div class="card-header"><div style="display:flex;align-items:center;gap:8px">
         <div style="width:10px;height:10px;border-radius:50%;background:${c.color}"></div>
@@ -987,22 +1132,31 @@ async function renderTrees() {
       <div style="padding:1.5rem;font-size:12px;color:var(--muted2);text-align:center">Nothing due soon</div>
     </div>`;
 
-    const nodes = sorted.map((a, i) => {
-      const due = a.due instanceof Date ? a.due : new Date(a.due);
-      const uc  = urgClass(a.hours_left);
-      const isNext = i === 0;
-      const cls = isNext ? 'active' : 'locked';
-      const dueStr = due.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' + fmt(a.hours_left);
-      const connector = i > 0 ? `<div class="ptree-connector" style="background:${i===1?'var(--gold-border)':'var(--border)'}"></div>` : '';
-      return `<div class="ptree-node">
-        ${connector}
-        <a href="${a.url}" target="_blank" style="text-decoration:none;display:flex;flex-direction:column;align-items:center">
-          <div class="ptree-circle ${cls}" title="${a.name}">${isNext?'▶':'🔒'}</div>
-          <div class="ptree-label${cls==='locked'?' muted':''}">${a.name}</div>
-          <div class="ptree-date" style="color:var(--${isNext?'gold':uc})">${dueStr}</div>
-        </a>
-      </div>`;
-    }).join('');
+    // Use smart flow tree if courseFlow has been defined via chat, else fall back to chronological
+    const flowNodes = g.courseFlow?.length ? buildFlowTree(sorted, g.courseFlow) : null;
+    const hasFlow   = !!flowNodes;
+    const nodesHtml = hasFlow
+      ? renderFlowNodes(flowNodes)
+      : sorted.map((a, i) => {
+          const due = a.due instanceof Date ? a.due : new Date(a.due);
+          const uc  = urgClass(a.hours_left);
+          const isNext = i === 0;
+          const cls = isNext ? 'active' : 'locked';
+          const dueStr = due.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' + fmt(a.hours_left);
+          const connector = i > 0 ? `<div class="ptree-connector" style="background:${i===1?'var(--gold-border)':'var(--border)'}"></div>` : '';
+          return `<div class="ptree-node">
+            ${connector}
+            <a href="${a.url}" target="_blank" style="text-decoration:none;display:flex;flex-direction:column;align-items:center">
+              <div class="ptree-circle ${cls}">${isNext?'▶':'🔒'}</div>
+              <div class="ptree-label${cls==='locked'?' muted':''}">${a.name}</div>
+              <div class="ptree-date" style="color:var(--${isNext?'gold':uc})">${dueStr}</div>
+            </a>
+          </div>`;
+        }).join('');
+
+    const badge = hasFlow
+      ? `<span style="font-size:10px;color:var(--green);font-weight:700;background:rgba(34,197,94,.1);border-radius:6px;padding:2px 7px">✦ AI flow</span>`
+      : `<span style="font-size:10px;color:var(--muted);cursor:pointer" onclick="showPage('grammar')" title="Set up course to enable flow tree">+ add flow</span>`;
 
     return `<div class="card">
       <div class="card-header">
@@ -1010,9 +1164,12 @@ async function renderTrees() {
           <div style="width:10px;height:10px;border-radius:50%;background:${c.color}"></div>
           <span class="card-title">${c.name}</span>
         </div>
-        <span onclick="openCourseDetail('${c.id}')" style="color:var(--gold);cursor:pointer;font-size:13px;font-weight:700">→</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${badge}
+          <span onclick="openCourseDetail('${c.id}')" style="color:var(--gold);cursor:pointer;font-size:13px;font-weight:700">→</span>
+        </div>
       </div>
-      <div style="padding:1.25rem;display:flex;flex-direction:column;align-items:center">${nodes}</div>
+      <div style="padding:1.25rem;display:flex;flex-direction:column;align-items:center">${nodesHtml}</div>
     </div>`;
   }).join('');
 }
