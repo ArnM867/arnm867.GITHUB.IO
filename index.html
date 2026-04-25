@@ -257,6 +257,21 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
         <div class="login-help">For AI task sequencing and course setup chat. Leave blank to use rule-based fallback.</div>
       </div>
 
+      <div class="login-divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:.75rem">BACKEND (OPTIONAL)</div>
+
+      <div class="form-group">
+        <label>Backend URL</label>
+        <input type="text" id="login-backend" placeholder="https://your-backend.onrender.com" onkeydown="if(event.key==='Enter')doLogin()">
+        <div class="login-help">Deploy <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">backend/</code> to <a href="https://render.com" target="_blank">Render</a> — enables live Gradescope data.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Gradescope Session Cookie</label>
+        <input type="password" id="login-gscookie" placeholder="_gradescope_session value" onkeydown="if(event.key==='Enter')doLogin()">
+        <div class="login-help">DevTools → Application → Cookies → gradescope.com → <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">_gradescope_session</code></div>
+      </div>
+
       <div class="login-error" id="login-error"></div>
       <button class="btn btn-gold" style="width:100%" id="login-btn" onclick="doLogin()">Connect Canvas →</button>
 
@@ -428,6 +443,8 @@ label{font-size:13px;font-weight:600;color:var(--muted2);display:block;margin-bo
 const STATE = {
   token: '',
   apiKey: '',
+  backendUrl: '',
+  gsCookie: '',
   baseUrl: 'https://harveymuddcollege.instructure.com/api/v1',
   userName: '',
   courses: [],
@@ -477,9 +494,11 @@ async function doLogin() {
   btn.disabled = true;
   errEl.style.display = 'none';
 
-  STATE.token   = token;
-  STATE.apiKey  = apiKey;
-  STATE.userName = name || 'Student';
+  STATE.token      = token;
+  STATE.apiKey     = apiKey;
+  STATE.backendUrl = (document.getElementById('login-backend').value.trim()).replace(/\/$/, '');
+  STATE.gsCookie   = document.getElementById('login-gscookie').value.trim();
+  STATE.userName   = name || 'Student';
 
   try {
     const res = await fetch(`${STATE.baseUrl}/courses?enrollment_state=active&per_page=50`, {
@@ -815,6 +834,46 @@ async function fetchAllAssignments() {
   const now = new Date();
   let all = [];
 
+  if (STATE.backendUrl && STATE.token) {
+    try {
+      const params = STATE.courses.map(c =>
+        `course_id=${c.id}&name_${c.id}=${encodeURIComponent(c.name)}`
+      ).join('&');
+      const res = await fetch(`${STATE.backendUrl}/api/assignments?${params}`, {
+        headers: { 'X-Canvas-Token': STATE.token }
+      });
+      if (res.ok) {
+        all = (await res.json()).map(a => ({
+          ...a, due: new Date(a.due),
+          hours_left: (new Date(a.due) - now) / 3600000
+        }));
+
+        if (STATE.gsCookie) {
+          try {
+            const gsRes = await fetch(`${STATE.backendUrl}/api/gradescope`, {
+              headers: { 'X-Gradescope-Cookie': STATE.gsCookie }
+            });
+            if (gsRes.ok) {
+              const gsData = await gsRes.json();
+              for (const a of gsData) {
+                if (!a.due) continue;
+                const due = new Date(a.due);
+                const hours_left = (due - now) / 3600000;
+                if (hours_left > 0) all.push({...a, due, hours_left});
+              }
+            }
+          } catch(e) {}
+        }
+
+        const seen = new Set();
+        all = all.filter(a => { if (seen.has(a.name)) return false; seen.add(a.name); return true; });
+        all.sort((a,b) => a.due - b.due);
+        return all;
+      }
+    } catch(e) {}
+  }
+
+  // Fallback: call Canvas API directly from the browser
   if (STATE.token) {
     for (const c of STATE.courses) {
       try {
