@@ -337,7 +337,6 @@ input[type=date]:focus,input[type=time]:focus{border-color:var(--gold)}
       <div class="card">
         <div class="card-header">
           <span class="card-title">Today's plan</span>
-          <button class="btn btn-outline btn-sm" onclick="openAddAssignment()">+ Assignment</button>
         </div>
         <div class="goals-progress-wrap">
           <div class="prog-track"><div class="prog-fill prog-fill-gold" id="dash-prog" style="width:0%"></div></div>
@@ -635,7 +634,7 @@ function submitAddCourse() {
   renderDashboard();
 }
 
-function openAddAssignment() {
+function openAddAssignment(preselectedCourseId) {
   document.getElementById('aa-name').value = '';
   document.getElementById('aa-url').value = '';
   document.getElementById('aa-error').style.display = 'none';
@@ -644,7 +643,7 @@ function openAddAssignment() {
   document.getElementById('aa-date').value = tomorrow.toISOString().slice(0, 10);
   document.getElementById('aa-time').value = '23:59';
   document.getElementById('aa-course').innerHTML = STATE.courses.map(c =>
-    `<option value="${c.id}">${c.name}</option>`
+    `<option value="${c.id}"${c.id === preselectedCourseId ? ' selected' : ''}>${c.name}</option>`
   ).join('');
   document.getElementById('modal-add-assignment').classList.add('open');
   setTimeout(() => document.getElementById('aa-name').focus(), 50);
@@ -1112,7 +1111,11 @@ async function renderDashboard() {
   document.getElementById('dash-course-list').innerHTML = STATE.courses.map(c => `
     <div class="course-sidebar-row" onclick="openCourseDetail('${c.id}')">
       <div class="cdot-name"><div class="cdot" style="background:${c.color}"></div>${c.name}</div>
-      <span class="tag tag-gold" id="course-count-${c.id}">—</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="tag tag-gold" id="course-count-${c.id}">—</span>
+        <span style="color:var(--muted2);font-size:16px;font-weight:600;line-height:1;padding:2px 4px;cursor:pointer"
+          onclick="event.stopPropagation();openAddAssignment('${c.id}')" title="Add assignment">+</span>
+      </div>
     </div>`).join('');
 
   document.getElementById('dash-tree-list').innerHTML = STATE.courses.map(c => `
