@@ -545,8 +545,18 @@ function saveUsersDB(db) {
   try { localStorage.setItem('muddmate_users', JSON.stringify(db)); } catch(e) {}
 }
 function getUser(username) {
-  if (username === 'test') return { ...TEST_USER, customAssignments: makeTestAssignments() };
-  return loadUsersDB()[username] || null;
+  const db = loadUsersDB();
+  if (db[username]) return db[username];
+  if (username === 'test') {
+    // First-ever login: seed the test account into localStorage
+    const seed = { ...TEST_USER, customAssignments: makeTestAssignments().map(a => ({
+      ...a, due: a.due instanceof Date ? a.due.toISOString() : a.due
+    })) };
+    db['test'] = seed;
+    saveUsersDB(db);
+    return seed;
+  }
+  return null;
 }
 function loadUserToState(user) {
   STATE.token             = user.canvasToken || '';
@@ -566,7 +576,7 @@ function loadUserToState(user) {
   STATE.checked = new Set();
 }
 function saveCurrentUser() {
-  if (!STATE.currentUser || STATE.currentUser === 'test') return;
+  if (!STATE.currentUser) return;
   const db = loadUsersDB();
   db[STATE.currentUser] = {
     ...(db[STATE.currentUser] || {}),
