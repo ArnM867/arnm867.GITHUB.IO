@@ -263,6 +263,20 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 .hs-result{padding:7px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:background .12s}
 .hs-result:hover{background:var(--bg4)}
 .plan-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:.9rem 0 .4rem}
+/* ═══ EXAM COUNTDOWN ═══ */
+.exam-cd{display:flex;align-items:center;gap:10px;padding:9px 1.25rem;border-bottom:1px solid var(--border)}
+.exam-cd:last-child{border-bottom:none}
+.exam-cd-days{font-size:22px;font-weight:800;min-width:36px;text-align:center;line-height:1}
+.exam-cd-sub{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center;color:var(--muted2)}
+/* ═══ GPA MODAL ═══ */
+.gpa-row{display:grid;grid-template-columns:1fr 80px 80px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+.gpa-row:last-child{border-bottom:none}
+/* ═══ GRADE PREDICTOR ═══ */
+.predictor-row{padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.predictor-row:last-child{border-bottom:none}
+/* ═══ HSA PLANNER ═══ */
+.hsa-course-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.hsa-course-row:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -362,6 +376,7 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
       <div class="card">
         <div class="card-header">
           <span class="card-title">Today's plan</span>
+          <button onclick="exportIcal()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--muted2);cursor:pointer" title="Export assignments to calendar">📅 iCal</button>
         </div>
         <div class="goals-progress-wrap">
           <div class="prog-track"><div class="prog-fill prog-fill-gold" id="dash-prog" style="width:0%"></div></div>
@@ -406,11 +421,23 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
       <div class="card">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:10px">
+            <div class="stat-icon-box" style="background:#f4725622;color:#f47256">📅</div>
+            <span class="card-title">Exam Countdown</span>
+          </div>
+        </div>
+        <div id="dash-exams"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:10px">
             <div class="stat-icon-box" style="background:#a78bfa22;color:#a78bfa">📊</div>
             <span class="card-title">Course Grades</span>
           </div>
+          <button onclick="openGPACalc()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--muted2);cursor:pointer">GPA →</button>
         </div>
         <div style="padding:.75rem 1.25rem 1.25rem" id="dash-grades"></div>
+        <div id="dash-predictor" style="padding:0 1.25rem 1rem"></div>
       </div>
 
       <div class="card">
@@ -515,6 +542,28 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
       <!-- RIGHT: 4-year grid -->
       <div>
         <div id="plan-year-grid"></div>
+        <!-- HSA Planner -->
+        <div class="card" style="margin-top:.75rem">
+          <div class="card-header">
+            <span class="card-title">HSA Concentration Planner</span>
+            <span id="hsa-summary-badge" style="font-size:11px;font-weight:700;color:var(--purple)"></span>
+          </div>
+          <div style="padding:1.25rem">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem" id="hsa-req-badges"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:6px;align-items:center;margin-bottom:.75rem">
+              <input id="hsa-name" type="text" placeholder="Course name" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--text)">
+              <select id="hsa-disc" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--text)">
+                <option value="">Discipline</option>
+                <option>Literature</option><option>History</option><option>Philosophy</option>
+                <option>Economics</option><option>Social Science</option><option>Political Science</option>
+                <option>Art &amp; Music</option><option>Languages</option><option>Psychology</option><option>Writing</option>
+              </select>
+              <label style="font-size:11px;color:var(--muted2);display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" id="hsa-writing"> Writing</label>
+              <button onclick="addHSACourse()" class="btn btn-gold btn-sm">Add</button>
+            </div>
+            <div id="hsa-course-list"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -733,6 +782,8 @@ const STATE = {
   lastActiveDate: null,
   debugDayOffset: 0,
   plan: { major:'', completed:[] },
+  gpaData: {},
+  hsaCourses: [],
 };
 
 // ═══════════════════════════════════════════
@@ -904,6 +955,8 @@ function loadUserToState(user) {
   STATE.grammar           = user.grammar || {};
   STATE.customTheme    = user.customTheme || null;
   STATE.plan           = user.plan || { major:'', completed:[] };
+  STATE.gpaData        = user.gpaData || {};
+  STATE.hsaCourses     = user.hsaCourses || [];
   STATE.streak         = user.streak || 0;
   STATE.longestStreak  = user.longestStreak || 0;
   STATE.lastActiveDate = user.lastActiveDate || null;
@@ -931,6 +984,8 @@ function saveCurrentUser() {
     grammar: STATE.grammar,
     customTheme: STATE.customTheme,
     plan: STATE.plan,
+    gpaData: STATE.gpaData,
+    hsaCourses: STATE.hsaCourses,
     streak: STATE.streak,
     longestStreak: STATE.longestStreak,
     lastActiveDate: STATE.lastActiveDate,
@@ -973,7 +1028,7 @@ function showPage(id) {
   const map = {dashboard:0, trees:1, grammar:2, settings:3};
   if (map[id] !== undefined) document.querySelectorAll('.nav-link')[map[id]]?.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'plan')      renderPlan();
+  if (id === 'plan')      { renderPlan(); renderHSAPlanner(); }
   if (id === 'grammar')   renderGrammar();
   if (id === 'trees')     renderTrees();
   if (id === 'settings')  renderSettings();
@@ -1763,6 +1818,210 @@ function fmtDueDate(due) {
 // ═══════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// ICAL EXPORT
+// ═══════════════════════════════════════════
+function exportIcal() {
+  const all = [...STATE.customAssignments, ...STATE.assignments.filter(a=>!a.custom)];
+  const fmt = d => new Date(d).toISOString().replace(/[-:.]/g,'').slice(0,15)+'Z';
+  const esc = s => (s||'').replace(/[,;\\]/g, c=>'\\'+c).replace(/\n/g,'\\n');
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MuddMate//HMC//EN','CALSCALE:GREGORIAN'];
+  all.forEach(a => {
+    const due = new Date(a.due);
+    lines.push('BEGIN:VEVENT',
+      `DTSTART:${fmt(due)}`,
+      `DTEND:${fmt(new Date(due.getTime()+3600000))}`,
+      `SUMMARY:${esc(a.name + ' — ' + a.course)}`,
+      `DESCRIPTION:${esc([a.course, a.type, a.weight!=null?a.weight+'% of grade':null].filter(Boolean).join(' | '))}`,
+      `URL:${a.url||''}`,
+      `UID:mm-${encodeURIComponent(a.course+a.name+due.getTime())}@muddmate`,
+      'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'});
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = 'muddmate-assignments.ics';
+  el.click();
+}
+
+// ═══════════════════════════════════════════
+// EXAM COUNTDOWN
+// ═══════════════════════════════════════════
+function renderExamCountdown() {
+  const el = document.getElementById('dash-exams');
+  if (!el) return;
+  const exams = [...STATE.customAssignments, ...STATE.assignments]
+    .filter(a => a.type === 'exam' && a.hours_left > 0)
+    .sort((a,b) => a.hours_left - b.hours_left)
+    .slice(0, 5);
+  if (!exams.length) { el.innerHTML = '<div style="padding:.75rem 1.25rem;font-size:12px;color:var(--muted2)">No upcoming exams.</div>'; return; }
+  el.innerHTML = exams.map(a => {
+    const days  = Math.ceil(a.hours_left / 24);
+    const color = days <= 3 ? 'var(--red)' : days <= 7 ? 'var(--amber)' : 'var(--green)';
+    const studyStart = a.weight >= 30 ? 7 : a.weight >= 15 ? 4 : 2;
+    const courseColor = STATE.courses.find(c=>c.name===a.course)?.color || '#888';
+    const tip = days <= studyStart ? `<span style="color:var(--red);font-weight:700">Start studying now!</span>` : `Start studying in ${days - studyStart}d`;
+    return `<div class="exam-cd">
+      <div>
+        <div class="exam-cd-days" style="color:${color}">${days}</div>
+        <div class="exam-cd-sub">days</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:11px;color:${courseColor};font-weight:600">${a.course}${a.weight!=null?' · '+a.weight+'%':''}</div>
+        <div style="font-size:10px;color:var(--muted2);margin-top:2px">${tip}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// GRADE PREDICTOR
+// ═══════════════════════════════════════════
+function renderGradePredictor() {
+  const el = document.getElementById('dash-predictor');
+  if (!el) return;
+  const all = [...STATE.customAssignments, ...STATE.assignments];
+  const rows = STATE.courses.map(c => {
+    const graded   = all.filter(a => a.course===c.name && a.score!=null && a.weight!=null);
+    const upcoming = all.filter(a => a.course===c.name && a.score==null  && a.weight!=null && a.hours_left>0);
+    if (!graded.length || !upcoming.length) return null;
+    const gradedW  = graded.reduce((s,a)=>s+Number(a.weight),0);
+    const earned   = graded.reduce((s,a)=>s+Number(a.score)*Number(a.weight)/100,0);
+    const remW     = upcoming.reduce((s,a)=>s+Number(a.weight),0);
+    if (!remW) return null;
+    const targets  = [{label:'A (93%)',t:93},{label:'B (83%)',t:83},{label:'C (73%)',t:73}];
+    const rows2 = targets.map(({label,t}) => {
+      const needed = ((t * (gradedW+remW)/100) - earned) / (remW/100);
+      const col = needed>100?'var(--red)':needed<0?'var(--green)':'var(--text)';
+      const txt = needed > 100 ? 'Not possible' : needed < 0 ? 'Already secured' : Math.round(needed)+'%';
+      return `<span style="font-size:11px;color:${col};margin-right:10px"><b>${label}:</b> ${txt}</span>`;
+    }).join('');
+    return `<div class="predictor-row">
+      <div style="font-size:12px;font-weight:700;color:${c.color};margin-bottom:3px">${c.name}</div>
+      <div>${rows2}</div>
+    </div>`;
+  }).filter(Boolean);
+  if (!rows.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="padding:.25rem 0 .25rem;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding:.5rem 0 .25rem">What do I need?</div>
+    ${rows.join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// GPA CALCULATOR
+// ═══════════════════════════════════════════
+const GPA_SCALE = {'A':4.0,'A-':3.7,'B+':3.3,'B':3.0,'B-':2.7,'C+':2.3,'C':2.0,'C-':1.7,'D+':1.3,'D':1.0,'F':0.0};
+function openGPACalc() {
+  const grades = calcCourseGrades();
+  const gpaData = STATE.gpaData || {};
+  const opts = Object.keys(GPA_SCALE).map(g=>`<option value="${g}">${g}</option>`).join('');
+  document.getElementById('gpa-rows').innerHTML = STATE.courses.map(c => {
+    const cur = grades[c.name];
+    const saved = gpaData[c.name] || {};
+    const autoLetter = cur ? letterGrade(cur.pct) : '';
+    const letter = saved.letter || autoLetter;
+    const credits = saved.credits || 3;
+    return `<div class="gpa-row">
+      <span style="font-size:12px;font-weight:600;color:${c.color}">${c.name}</span>
+      <input type="number" value="${credits}" min="0.5" max="6" step="0.5" oninput="calcGPA()" id="gpa-cr-${c.id}"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;color:var(--text);width:100%">
+      <select onchange="calcGPA()" id="gpa-gr-${c.id}"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;color:var(--text);width:100%">
+        <option value="">—</option>${opts}
+      </select>
+    </div>`;
+  }).join('');
+  STATE.courses.forEach(c => {
+    const saved = (STATE.gpaData||{})[c.name] || {};
+    const cur = calcCourseGrades()[c.name];
+    const auto = cur ? letterGrade(cur.pct) : '';
+    const letter = saved.letter || auto;
+    const el = document.getElementById(`gpa-gr-${c.id}`);
+    if (el && letter) el.value = letter;
+  });
+  const prev = STATE.gpaData || {};
+  document.getElementById('gpa-prev-credits').value = prev._prevCredits || '';
+  document.getElementById('gpa-prev-gpa').value = prev._prevGPA || '';
+  document.getElementById('modal-gpa').classList.add('open');
+  calcGPA();
+}
+function calcGPA() {
+  let totalPts = 0, totalCr = 0;
+  STATE.courses.forEach(c => {
+    const cr = parseFloat(document.getElementById(`gpa-cr-${c.id}`)?.value) || 0;
+    const gr = document.getElementById(`gpa-gr-${c.id}`)?.value;
+    const pts = GPA_SCALE[gr];
+    if (cr > 0 && pts != null) { totalPts += pts * cr; totalCr += cr; }
+    if (!STATE.gpaData) STATE.gpaData = {};
+    STATE.gpaData[c.name] = { credits: cr, letter: gr };
+  });
+  const semGPA = totalCr ? (totalPts / totalCr) : null;
+  const prevCr  = parseFloat(document.getElementById('gpa-prev-credits')?.value) || 0;
+  const prevGPA = parseFloat(document.getElementById('gpa-prev-gpa')?.value) || 0;
+  const cumGPA  = (totalCr + prevCr) ? ((totalPts + prevGPA * prevCr) / (totalCr + prevCr)) : null;
+  document.getElementById('gpa-semester').textContent  = semGPA  != null ? semGPA.toFixed(2)  : '—';
+  document.getElementById('gpa-cumulative').textContent = cumGPA != null ? cumGPA.toFixed(2) : '—';
+  if (STATE.gpaData) { STATE.gpaData._prevCredits = prevCr; STATE.gpaData._prevGPA = prevGPA; }
+  saveCurrentUser();
+}
+
+// ═══════════════════════════════════════════
+// HSA PLANNER
+// ═══════════════════════════════════════════
+const HSA_REQS = { total:11, concentration:4, breadth:5, writing:1 };
+function addHSACourse() {
+  const name = document.getElementById('hsa-name').value.trim();
+  const disc = document.getElementById('hsa-disc').value;
+  const writing = document.getElementById('hsa-writing').checked;
+  if (!name || !disc) return;
+  if (!STATE.hsaCourses) STATE.hsaCourses = [];
+  STATE.hsaCourses.push({ name, disc, writing });
+  document.getElementById('hsa-name').value = '';
+  document.getElementById('hsa-disc').value = '';
+  document.getElementById('hsa-writing').checked = false;
+  saveCurrentUser();
+  renderHSAPlanner();
+}
+function removeHSACourse(i) {
+  STATE.hsaCourses.splice(i, 1);
+  saveCurrentUser();
+  renderHSAPlanner();
+}
+function renderHSAPlanner() {
+  const courses = STATE.hsaCourses || [];
+  const discs = {};
+  let writing = 0;
+  courses.forEach(c => { discs[c.disc] = (discs[c.disc]||0)+1; if(c.writing) writing++; });
+  const topDisc = Object.entries(discs).sort((a,b)=>b[1]-a[1])[0];
+  const concentration = topDisc ? topDisc[1] : 0;
+  const breadth = Object.keys(discs).length;
+  const reqs = [
+    { label:'Total courses', have:courses.length, need:HSA_REQS.total, met:courses.length>=HSA_REQS.total },
+    { label:'Concentration (one discipline)', have:concentration, need:HSA_REQS.concentration, met:concentration>=HSA_REQS.concentration },
+    { label:'Breadth (5 disciplines)', have:breadth, need:HSA_REQS.breadth, met:breadth>=HSA_REQS.breadth },
+    { label:'Writing-intensive', have:writing, need:HSA_REQS.writing, met:writing>=HSA_REQS.writing },
+  ];
+  const metCount = reqs.filter(r=>r.met).length;
+  const badge = document.getElementById('hsa-summary-badge');
+  if (badge) badge.textContent = `${metCount}/${reqs.length} requirements met`;
+  const badgeEl = document.getElementById('hsa-req-badges');
+  if (badgeEl) badgeEl.innerHTML = reqs.map(r => `
+    <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:${r.met?'var(--green)22':'var(--bg3)'};color:${r.met?'var(--green)':'var(--muted2)'};border:1px solid ${r.met?'var(--green)':'var(--border)'}">
+      ${r.met?'✓':r.have+'/'+r.need} ${r.label}
+    </span>`).join('');
+  const listEl = document.getElementById('hsa-course-list');
+  if (listEl) listEl.innerHTML = courses.length ? courses.map((c,i) => `
+    <div class="hsa-course-row">
+      <span style="flex:1;font-weight:600">${c.name}</span>
+      <span style="font-size:10px;background:rgba(167,139,250,.15);color:var(--purple);padding:2px 6px;border-radius:5px;font-weight:700">${c.disc}</span>
+      ${c.writing?'<span style="font-size:10px;color:var(--blue);margin-left:4px">✍️</span>':''}
+      <button onclick="removeHSACourse(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px">×</button>
+    </div>`).join('') : '<div style="font-size:12px;color:var(--muted2)">No HSA courses logged yet.</div>';
+}
+
 function letterGrade(pct) {
   if (pct >= 93) return 'A';
   if (pct >= 90) return 'A−';
@@ -2161,6 +2420,8 @@ async function renderDashboard() {
   }).join('');
 
   renderGradeCard();
+  renderGradePredictor();
+  renderExamCountdown();
   renderStreakBadge();
   updateTaskProgress();
 }
@@ -2502,6 +2763,38 @@ async function openCourseDetail(courseId) {
     </div>
     <div id="aa-error" class="modal-error"></div>
     <button class="btn btn-gold" style="width:100%" onclick="submitAddAssignment()">Add Assignment →</button>
+  </div>
+</div>
+
+<!-- ═══ GPA CALCULATOR MODAL ═══ -->
+<div class="modal-overlay" id="modal-gpa" onclick="if(event.target===this)closeModal('modal-gpa')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">GPA Calculator</div>
+    <button class="modal-close" onclick="closeModal('modal-gpa')">✕</button>
+    <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;padding:0 0 6px;font-size:11px;font-weight:700;color:var(--muted2);border-bottom:1px solid var(--border);margin-bottom:4px">
+      <span>Course</span><span>Credits</span><span>Grade</span>
+    </div>
+    <div id="gpa-rows" style="max-height:320px;overflow-y:auto"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="background:var(--bg3);border-radius:10px;padding:.75rem;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--gold)" id="gpa-semester">—</div>
+        <div style="font-size:11px;color:var(--muted2);font-weight:600">Semester GPA</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:.75rem;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--blue)" id="gpa-cumulative">—</div>
+        <div style="font-size:11px;color:var(--muted2);font-weight:600">Cumulative GPA</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:.75rem">
+      <div>
+        <label>Prior credits completed</label>
+        <input type="number" id="gpa-prev-credits" placeholder="0" min="0" oninput="calcGPA()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--text)">
+      </div>
+      <div>
+        <label>Prior cumulative GPA</label>
+        <input type="number" id="gpa-prev-gpa" placeholder="0.00" min="0" max="4" step="0.01" oninput="calcGPA()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--text)">
+      </div>
+    </div>
   </div>
 </div>
 
