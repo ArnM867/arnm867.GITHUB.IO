@@ -232,6 +232,15 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 .wt-row input[type=range]{flex:1;accent-color:var(--gold);cursor:pointer;height:4px}
 .wt-val{font-size:13px;font-weight:700;color:var(--gold);width:34px;text-align:right;flex-shrink:0}
 .modal-error{color:var(--red);font-size:13px;margin-bottom:1rem;display:none}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:var(--bg3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;transition:all .15s;color:transparent}
+.task-check.done{background:var(--green);border-color:var(--green);color:#fff}
+.task-item-row{display:flex;align-items:center;gap:10px;padding:10px 1.25rem;border-bottom:1px solid var(--border);transition:background .1s}
+.task-item-row:last-child{border-bottom:none}
+.task-item-row:hover{background:var(--bg3)}
+.task-item-row.done-row .task-name,.task-item-row.done-row .task-sub{opacity:.4;text-decoration:line-through}
+.streak-badge{display:flex;align-items:center;gap:8px;padding:.6rem 1rem;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:12px;margin-top:.75rem}
+.debug-btn{background:var(--bg3);border:1px dashed var(--border);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--muted2);cursor:pointer;font-family:inherit}
+.debug-btn:hover{border-color:var(--muted);color:var(--text)}
 .grade-row{margin-bottom:.9rem}.grade-row:last-child{margin-bottom:0}
 .grade-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
 .grade-letter{font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px}
@@ -302,6 +311,18 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
           <div class="profile-avatar-big">🎓</div>
           <div class="profile-name-big" id="dash-name">Student</div>
           <div class="profile-meta">Harvey Mudd College · Spring 2026</div>
+          <div class="streak-badge" id="streak-badge">
+            <span style="font-size:20px">🔥</span>
+            <div>
+              <div style="font-size:18px;font-weight:800;color:var(--gold);line-height:1" id="streak-count">0</div>
+              <div style="font-size:10px;font-weight:600;color:var(--muted2)" id="streak-label">day streak</div>
+            </div>
+            <div style="margin-left:auto;text-align:right">
+              <div style="font-size:11px;font-weight:700;color:var(--muted2)">Best</div>
+              <div style="font-size:13px;font-weight:800;color:var(--muted2)" id="streak-best">0</div>
+            </div>
+          </div>
+          <button class="debug-btn" style="width:100%;margin-top:.5rem" onclick="debugProgressDay()">⏭ Debug: Progress Day Forward</button>
           <button class="quest-btn" onclick="showPage('grammar')">Configure course structure →</button>
         </div>
       </div>
@@ -625,6 +646,10 @@ const STATE = {
   assignments: [],
   currentCourse: null,
   checked: new Set(),
+  streak: 0,
+  longestStreak: 0,
+  lastActiveDate: null,
+  debugDayOffset: 0,
 };
 
 // ═══════════════════════════════════════════
@@ -754,7 +779,11 @@ function loadUserToState(user) {
   });
   STATE.typeWeights       = { ...DEFAULT_TYPE_WEIGHTS, ...(user.typeWeights || {}) };
   STATE.grammar           = user.grammar || {};
-  STATE.customTheme = user.customTheme || null;
+  STATE.customTheme    = user.customTheme || null;
+  STATE.streak         = user.streak || 0;
+  STATE.longestStreak  = user.longestStreak || 0;
+  STATE.lastActiveDate = user.lastActiveDate || null;
+  STATE.debugDayOffset = 0;
   applyTheme(STATE.customTheme);
   STATE.assignments = STATE.customAssignments.filter(a => a.hours_left > 0);
   STATE.checked = new Set();
@@ -777,6 +806,9 @@ function saveCurrentUser() {
     typeWeights: STATE.typeWeights,
     grammar: STATE.grammar,
     customTheme: STATE.customTheme,
+    streak: STATE.streak,
+    longestStreak: STATE.longestStreak,
+    lastActiveDate: STATE.lastActiveDate,
   };
   saveUsersDB(db);
 }
@@ -1495,6 +1527,74 @@ Rules:
   }
 }
 
+// ═══════════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + (STATE.debugDayOffset || 0));
+  return d.toISOString().slice(0, 10);
+}
+function markActiveToday() {
+  const today = todayStr();
+  const last  = STATE.lastActiveDate;
+  if (last === today) return; // already counted today
+  const prev = new Date(today); prev.setDate(prev.getDate() - 1);
+  const yesterday = prev.toISOString().slice(0, 10);
+  STATE.streak = (last === yesterday) ? STATE.streak + 1 : 1;
+  STATE.longestStreak = Math.max(STATE.longestStreak, STATE.streak);
+  STATE.lastActiveDate = today;
+  saveCurrentUser();
+  renderStreakBadge();
+}
+function renderStreakBadge() {
+  const el = document.getElementById('streak-count');
+  const lb = document.getElementById('streak-label');
+  const be = document.getElementById('streak-best');
+  if (el) el.textContent = STATE.streak;
+  if (lb) lb.textContent = STATE.streak === 1 ? 'day streak' : 'day streak';
+  if (be) be.textContent = STATE.longestStreak;
+  const badge = document.getElementById('streak-badge');
+  if (badge) badge.style.display = STATE.streak > 0 ? 'flex' : 'none';
+}
+function toggleTask(key, idx) {
+  if (STATE.checked.has(key)) {
+    STATE.checked.delete(key);
+  } else {
+    STATE.checked.add(key);
+    markActiveToday();
+  }
+  const done = STATE.checked.has(key);
+  const row  = document.getElementById('trow-' + idx);
+  const btn  = document.getElementById('tchk-' + idx);
+  if (row) row.classList.toggle('done-row', done);
+  if (btn) { btn.classList.toggle('done', done); btn.textContent = done ? '✓' : ''; }
+  updateTaskProgress();
+}
+function updateTaskProgress() {
+  const total   = document.querySelectorAll('.task-item-row').length;
+  const done    = STATE.checked.size;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+  const progEl  = document.getElementById('dash-prog');
+  const fracEl  = document.getElementById('dash-frac');
+  if (progEl) progEl.style.width = pct + '%';
+  if (fracEl) fracEl.textContent = `${done}/${total}`;
+}
+function debugProgressDay() {
+  // Count today as active (builds streak), then advance by 1 day
+  if (STATE.checked.size > 0) markActiveToday();
+  else {
+    STATE.lastActiveDate = todayStr();
+    STATE.streak = STATE.streak > 0 ? STATE.streak + 1 : 1;
+    STATE.longestStreak = Math.max(STATE.longestStreak, STATE.streak);
+    saveCurrentUser();
+  }
+  STATE.debugDayOffset = (STATE.debugDayOffset || 0) + 1;
+  STATE.checked = new Set();
+  renderStreakBadge();
+  renderDashboard();
+}
+
 function prioritizeTasks(assignments) {
   const grades = calcCourseGrades();
   return [...assignments].sort((a, b) => {
@@ -1664,28 +1764,34 @@ async function renderDashboard() {
   if (!tasks.length) { tasksEl.innerHTML='<div class="loading-msg">Nothing due soon — you\'re ahead!</div>'; return; }
   const taskGrades = calcCourseGrades();
   tasksEl.innerHTML = tasks.map((t,i) => {
+    const key   = t.course + '|' + t.name;
+    const done  = STATE.checked.has(key);
     const uc    = urgClass(t.hours_left);
     const color = STATE.courses.find(c=>c.name===t.course)?.color || '#888';
     const badge = t.type ? atypeBadge(t.type) : '';
     const wt    = t.weight != null ? `<span class="weight-badge">${t.weight}%</span>` : '';
     const gr    = taskGrades[t.course];
     const grBadge = gr ? `<span style="font-size:10px;font-weight:700;color:${gradeColor(gr.pct)};background:${gradeColor(gr.pct)}22;padding:1px 5px;border-radius:4px">${gr.pct}%</span>` : '';
-    return `<a class="task-item" href="${t.url}" target="_blank">
-      <span class="task-num">${i+1}</span>
-      <div class="task-info">
-        <div class="task-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span>${t.sequence}</span>${badge}${wt}
+    const safeKey = key.replace(/'/g, "\\'");
+    return `<div class="task-item-row${done?' done-row':''}" id="trow-${i}">
+      <button class="task-check${done?' done':''}" id="tchk-${i}" onclick="toggleTask('${safeKey}',${i})">${done?'✓':''}</button>
+      <a href="${t.url}" target="_blank" style="flex:1;min-width:0;text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px">
+        <span class="task-num">${i+1}</span>
+        <div class="task-info">
+          <div class="task-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span>${t.sequence}</span>${badge}${wt}
+          </div>
+          <div class="task-sub">
+            <span style="color:${color};font-weight:700">${t.course}</span>${grBadge}
+            <span style="color:var(--muted)">·</span>
+            <span class="task-time ${uc}">${t.timeStr}</span>
+            <span style="color:var(--muted)">·</span>
+            <span style="color:var(--muted2)">${t.dueStr}</span>
+          </div>
         </div>
-        <div class="task-sub">
-          <span style="color:${color};font-weight:700">${t.course}</span>${grBadge}
-          <span style="color:var(--muted)">·</span>
-          <span class="task-time ${uc}">${t.timeStr}</span>
-          <span style="color:var(--muted)">·</span>
-          <span style="color:var(--muted2)">${t.dueStr}</span>
-        </div>
-      </div>
-      <span class="task-arrow">→</span>
-    </a>`;
+        <span class="task-arrow">→</span>
+      </a>
+    </div>`;
   }).join('');
 
   document.getElementById('dash-mini-list').innerHTML = tasks.slice(0,5).map(t => {
@@ -1702,6 +1808,8 @@ async function renderDashboard() {
   }).join('');
 
   renderGradeCard();
+  renderStreakBadge();
+  updateTaskProgress();
 }
 
 // ═══════════════════════════════════════════
