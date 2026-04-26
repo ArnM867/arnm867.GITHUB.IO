@@ -655,7 +655,7 @@ const STATE = {
 // ═══════════════════════════════════════════
 // USERS DB
 // ═══════════════════════════════════════════
-const TEST_DATA_VERSION = 3;
+const TEST_DATA_VERSION = 4;
 
 function makeTestAssignments() {
   const d = (days, hour=23, min=59) => {
@@ -719,9 +719,38 @@ function makeTestAssignments() {
     {course:'Physics 024', name:'HW 12',     due:d(-9),  type:'hw',   weight:5, score:85,  url:`${GS}/1217636/assignments`, source:'canvas'},
     {course:'Physics 024', name:'Pre-Lab 6', due:d(-5),  type:'lab',  weight:2, score:100, url:`${GS}/1217636/assignments`, source:'canvas'},
     // ── Physics 024 (upcoming) ───────────────────────────────────
-    {course:'Physics 024', name:'Pre-Lab 7', due:d(2,23,59), type:'lab', weight:2, url:`${GS}/1217636/assignments`, source:'canvas'},
-    {course:'Physics 024', name:'HW13',      due:d(5,16,0),  type:'hw',  weight:5, url:`${GS}/1217636/assignments`, source:'canvas'},
-    {course:'Physics 024', name:'HW14',      due:d(12),      type:'hw',  weight:5, url:`${GS}/1217636/assignments`, source:'canvas'},
+    {course:'Physics 024', name:'Pre-Lab 7', due:d(2,23,59), type:'lab',  weight:2,  url:`${GS}/1217636/assignments`, source:'canvas'},
+    {course:'Physics 024', name:'HW13',      due:d(5,16,0),  type:'hw',   weight:5,  url:`${GS}/1217636/assignments`, source:'canvas'},
+    {course:'Physics 024', name:'HW14',      due:d(12),      type:'hw',   weight:5,  url:`${GS}/1217636/assignments`, source:'canvas'},
+    {course:'Physics 024', name:'Final Exam',due:d(28),      type:'exam', weight:35, url:`${GS}/1217636/assignments`, source:'canvas'},
+
+    // ── CS 105: Algorithms (past, graded) ────────────────────────
+    {course:'CS 105: Algorithms', name:'PS 1: Sorting',         due:d(-32), type:'hw',      weight:6,  score:95, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 2: Divide & Conquer',due:d(-25), type:'hw',      weight:6,  score:88, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'Quiz 1',                 due:d(-22), type:'quiz',    weight:8,  score:91, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 3: Dynamic Prog.',   due:d(-18), type:'hw',      weight:6,  score:82, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 4: Graphs',          due:d(-11), type:'hw',      weight:6,  score:90, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'Midterm',               due:d(-9),  type:'exam',    weight:30, score:87, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 5: NP-Completeness', due:d(-4),  type:'hw',      weight:6,  score:93, url:HMC, source:'canvas'},
+    // ── CS 105: Algorithms (upcoming) ────────────────────────────
+    {course:'CS 105: Algorithms', name:'Quiz 2',                 due:d(3),   type:'quiz',    weight:8,  url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 6: Approximation',   due:d(8),   type:'hw',      weight:6,  url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'Project Proposal',      due:d(11),  type:'project', weight:5,  url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'PS 7: Randomized Algs', due:d(15),  type:'hw',      weight:6,  url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'Final Project',         due:d(24),  type:'project', weight:15, url:HMC, source:'canvas'},
+    {course:'CS 105: Algorithms', name:'Final Exam',            due:d(30),  type:'exam',    weight:30, url:HMC, source:'canvas'},
+
+    // ── Extra upcoming items across existing courses ──────────────
+    {course:'Critical Inquiry',   name:'Peer Review Draft',     due:d(3,23,59),  type:'other',   weight:5,  url:HMC, source:'canvas'},
+    {course:'Critical Inquiry',   name:'Final Paper',           due:d(25),       type:'project', weight:30, url:HMC, source:'canvas'},
+    {course:'Chemistry 042',      name:'Pre-Class 25',          due:d(5,8,0),    type:'reading', weight:1,  url:`${GS}/1219840/assignments`, source:'canvas'},
+    {course:'Chemistry 042',      name:'Quiz 3',                due:d(10),       type:'quiz',    weight:8,  url:`${GS}/1219840/assignments`, source:'canvas'},
+    {course:'Chemistry 042',      name:'Homework 12',           due:d(11,23,59), type:'hw',      weight:5,  url:`${GS}/1219840/assignments`, source:'canvas'},
+    {course:'Chemistry 042',      name:'Final Exam',            due:d(29),       type:'exam',    weight:25, url:`${GS}/1219840/assignments`, source:'canvas'},
+    {course:'Math 73',            name:'Problem Set 11',        due:d(20),       type:'hw',      weight:5,  url:HMC, source:'canvas'},
+    {course:'Math 73',            name:'Final Exam',            due:d(27),       type:'exam',    weight:35, url:HMC, source:'canvas'},
+    {course:'Chem Lab 024',       name:'Lab Report 5',          due:d(16),       type:'lab',     weight:15, url:HMC, source:'canvas'},
+    {course:'Chem Lab 024',       name:'Lab Final',             due:d(23),       type:'exam',    weight:20, url:HMC, source:'canvas'},
   ];
 }
 
@@ -732,15 +761,25 @@ const TEST_USER = {
   apiKey: (typeof CLAUDE_API_KEY !== 'undefined' ? CLAUDE_API_KEY : ''),
   backendUrl: '',
   gsCookie: '',
+  streak: 7,
+  longestStreak: 12,
+  lastActiveDate: (() => { const d=new Date(); return d.toISOString().slice(0,10); })(),
   courses: [
-    {id:'3201', name:'Critical Inquiry', color:'#f5a623'},
-    {id:'3134', name:'Chemistry 042',    color:'#22c55e'},
-    {id:'3342', name:'Chem Lab 024',     color:'#e24b4a'},
-    {id:'3340', name:'Math 73',          color:'#60a5fa'},
-    {id:'3338', name:'Physics 024',      color:'#a78bfa'},
+    {id:'3201', name:'Critical Inquiry',   color:'#f5a623'},
+    {id:'3134', name:'Chemistry 042',      color:'#22c55e'},
+    {id:'3342', name:'Chem Lab 024',       color:'#e24b4a'},
+    {id:'3340', name:'Math 73',            color:'#60a5fa'},
+    {id:'3338', name:'Physics 024',        color:'#a78bfa'},
+    {id:'3401', name:'CS 105: Algorithms', color:'#f472b6'},
   ],
   customCourses: [],
-  grammar: {},
+  typeWeights: { hw:25, quiz:10, exam:35, lab:15, project:10, reading:5, other:0 },
+  grammar: {
+    '3134': { structure:'preclass-then-lecture', lectureDays:['Monday','Wednesday','Friday'], hwDueDay:'Wednesday', hwOffset:3 },
+    '3338': { structure:'lab-based', lectureDays:['Tuesday','Thursday'], hwDueDay:'Sunday', hwOffset:4 },
+    '3340': { structure:'hw-only', lectureDays:['Monday','Wednesday','Friday'], hwDueDay:'Friday', hwOffset:3 },
+    '3401': { structure:'hw-only', lectureDays:['Monday','Wednesday'], hwDueDay:'Monday', hwOffset:5 },
+  },
 };
 
 function loadUsersDB() {
