@@ -244,6 +244,25 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 .grade-row{margin-bottom:.9rem}.grade-row:last-child{margin-bottom:0}
 .grade-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
 .grade-letter{font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px}
+/* ═══ 4-YEAR PLAN ═══ */
+#page-plan{padding:1.5rem;max-width:1100px;margin:0 auto}
+.plan-grid{display:grid;grid-template-columns:300px 1fr;gap:1.25rem}
+.semester-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.sem-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem}
+.sem-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:.6rem}
+.course-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;margin:2px;cursor:pointer;border:1px solid transparent;transition:all .12s}
+.course-chip.core{background:var(--gold-dim);border-color:var(--gold-border);color:var(--gold)}
+.course-chip.major{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3);color:var(--blue)}
+.course-chip.hsa{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.3);color:var(--purple)}
+.course-chip.elective{background:var(--bg3);border-color:var(--border);color:var(--muted2)}
+.course-chip.done{opacity:.45;text-decoration:line-through}
+.req-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.req-row:last-child{border-bottom:none}
+.req-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);background:var(--bg3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;transition:all .12s}
+.req-check.done{background:var(--green);border-color:var(--green);color:#fff}
+.hs-result{padding:7px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:background .12s}
+.hs-result:hover{background:var(--bg4)}
+.plan-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:.9rem 0 .4rem}
 </style>
 </head>
 <body>
@@ -257,6 +276,7 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
     <span class="nav-link active" onclick="showPage('dashboard')">Dashboard</span>
     <span class="nav-link" onclick="showPage('trees')">Lesson Trees</span>
     <span class="nav-link" onclick="showPage('grammar')">Course Setup</span>
+    <span class="nav-link" onclick="showPage('plan')">4-Year Plan</span>
     <span class="nav-link" onclick="showPage('settings')">Settings</span>
     <div class="nav-user">
       <div class="nav-avatar" id="nav-initials">?</div>
@@ -434,6 +454,68 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
     </div>
     <div id="grammar-main" style="display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:13px">
       Select a course to configure it.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: 4-YEAR PLAN
+════════════════════════════════════════════ -->
+<div class="page" id="page-plan">
+  <div id="plan-root" style="padding:1.5rem;max-width:1100px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <h2 style="font-size:22px;font-weight:800;flex:1">4-Year Plan</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:var(--muted2)">Major:</label>
+        <select id="plan-major" onchange="onMajorChange()" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;color:var(--text)">
+          <option value="">— select —</option>
+          <option value="cs">Computer Science</option>
+          <option value="physics">Physics</option>
+          <option value="math">Mathematics</option>
+          <option value="chem">Chemistry</option>
+          <option value="engr">Engineering</option>
+          <option value="bio">Biology</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-grid">
+      <!-- LEFT: requirements checklist -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Core Requirements</span>
+            <span id="core-prog-label" style="font-size:12px;font-weight:700;color:var(--green)">0/13</span>
+          </div>
+          <div style="padding:.5rem 1.25rem 1rem">
+            <div class="prog-track" style="margin-bottom:.75rem"><div class="prog-fill prog-fill-gold" id="core-prog-bar" style="width:0%"></div></div>
+            <div id="core-req-list"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:.75rem" id="major-req-card" style="display:none">
+          <div class="card-header">
+            <span class="card-title" id="major-req-title">Major Requirements</span>
+            <span id="major-prog-label" style="font-size:12px;font-weight:700;color:var(--blue)">0/0</span>
+          </div>
+          <div style="padding:.5rem 1.25rem 1rem">
+            <div class="prog-track" style="margin-bottom:.75rem"><div class="prog-fill" id="major-prog-bar" style="width:0%;background:var(--blue)"></div></div>
+            <div id="major-req-list"></div>
+          </div>
+        </div>
+        <!-- Hyperschedule search -->
+        <div class="card" style="margin-top:.75rem">
+          <div class="card-header"><span class="card-title">Course Search</span><span style="font-size:10px;color:var(--muted2)">via Hyperschedule</span></div>
+          <div style="padding:1rem 1.25rem">
+            <div style="display:flex;gap:8px;margin-bottom:.75rem">
+              <input id="hs-search" type="text" placeholder="Search HMC courses…" oninput="searchHyperschedule()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--text)">
+            </div>
+            <div id="hs-results" style="max-height:220px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: 4-year grid -->
+      <div>
+        <div id="plan-year-grid"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -650,6 +732,7 @@ const STATE = {
   longestStreak: 0,
   lastActiveDate: null,
   debugDayOffset: 0,
+  plan: { major:'', completed:[] },
 };
 
 // ═══════════════════════════════════════════
@@ -774,6 +857,7 @@ const TEST_USER = {
   ],
   customCourses: [],
   typeWeights: { hw:25, quiz:10, exam:35, lab:15, project:10, reading:5, other:0 },
+  plan: { major:'cs', completed:['math-calc','hum-write','phys-rel','chem-main','cs-intro','math-la','phys-lab','chem-lab','hum-ci','cs-disc'] },
   grammar: {
     '3134': { structure:'preclass-then-lecture', lectureDays:['Monday','Wednesday','Friday'], hwDueDay:'Wednesday', hwOffset:3 },
     '3338': { structure:'lab-based', lectureDays:['Tuesday','Thursday'], hwDueDay:'Sunday', hwOffset:4 },
@@ -819,6 +903,7 @@ function loadUserToState(user) {
   STATE.typeWeights       = { ...DEFAULT_TYPE_WEIGHTS, ...(user.typeWeights || {}) };
   STATE.grammar           = user.grammar || {};
   STATE.customTheme    = user.customTheme || null;
+  STATE.plan           = user.plan || { major:'', completed:[] };
   STATE.streak         = user.streak || 0;
   STATE.longestStreak  = user.longestStreak || 0;
   STATE.lastActiveDate = user.lastActiveDate || null;
@@ -845,6 +930,7 @@ function saveCurrentUser() {
     typeWeights: STATE.typeWeights,
     grammar: STATE.grammar,
     customTheme: STATE.customTheme,
+    plan: STATE.plan,
     streak: STATE.streak,
     longestStreak: STATE.longestStreak,
     lastActiveDate: STATE.lastActiveDate,
@@ -887,6 +973,7 @@ function showPage(id) {
   const map = {dashboard:0, trees:1, grammar:2, settings:3};
   if (map[id] !== undefined) document.querySelectorAll('.nav-link')[map[id]]?.classList.add('active');
   if (id === 'dashboard') renderDashboard();
+  if (id === 'plan')      renderPlan();
   if (id === 'grammar')   renderGrammar();
   if (id === 'trees')     renderTrees();
   if (id === 'settings')  renderSettings();
@@ -1753,6 +1840,233 @@ function renderGradeCard() {
       <div style="font-size:10px;color:var(--muted2)">${g.count} graded · ${g.totalWeight}% of grade tracked</div>
     </div>`;
   }).join('');
+}
+
+// ═══════════════════════════════════════════
+// 4-YEAR PLAN
+// ═══════════════════════════════════════════
+const HMC_CORE = [
+  { id:'math-calc',  name:'Calculus',                      credits:4,   yr:1, sem:'Fall',   dept:'Math',        tag:'core' },
+  { id:'hum-write',  name:'Academic Writing',              credits:2,   yr:1, sem:'Fall',   dept:'HSA',         tag:'core' },
+  { id:'phys-rel',   name:'Special Relativity',            credits:1.5, yr:1, sem:'Fall',   dept:'Physics',     tag:'core' },
+  { id:'chem-main',  name:'Chemistry (Lecture)',           credits:4,   yr:1, sem:'Fall',   dept:'Chemistry',   tag:'core' },
+  { id:'cs-intro',   name:'Intro to Computer Science',     credits:3,   yr:1, sem:'Fall',   dept:'CS',          tag:'core' },
+  { id:'math-la',    name:'Linear Algebra',                credits:3,   yr:1, sem:'Spring', dept:'Math',        tag:'core' },
+  { id:'phys-mech',  name:'Mechanics & Wave Motion',       credits:4,   yr:1, sem:'Spring', dept:'Physics',     tag:'core' },
+  { id:'phys-lab',   name:'Physics Laboratory',            credits:1,   yr:1, sem:'Spring', dept:'Physics',     tag:'core' },
+  { id:'chem-lab',   name:'Chemistry Laboratory',          credits:1,   yr:1, sem:'Spring', dept:'Chemistry',   tag:'core' },
+  { id:'hum-ci',     name:'Critical Inquiry',              credits:3,   yr:1, sem:'Spring', dept:'HSA',         tag:'core' },
+  { id:'bio-main',   name:'Introduction to Biology',       credits:3,   yr:2, sem:'Fall',   dept:'Biology',     tag:'core' },
+  { id:'bio-lab',    name:'Biology Laboratory',            credits:1,   yr:2, sem:'Fall',   dept:'Biology',     tag:'core' },
+  { id:'engr-intro', name:'Intro to Engineering Systems',  credits:4,   yr:2, sem:'Spring', dept:'Engineering', tag:'core' },
+];
+
+const HMC_HSA = [
+  { id:'hsa1', name:'HSA Elective 1', credits:3, yr:2, sem:'Fall',   dept:'HSA', tag:'hsa' },
+  { id:'hsa2', name:'HSA Elective 2', credits:3, yr:2, sem:'Spring', dept:'HSA', tag:'hsa' },
+  { id:'hsa3', name:'HSA Elective 3', credits:3, yr:3, sem:'Fall',   dept:'HSA', tag:'hsa' },
+  { id:'hsa4', name:'HSA Concentration', credits:3, yr:3, sem:'Spring', dept:'HSA', tag:'hsa' },
+  { id:'hsa5', name:'HSA Concentration', credits:3, yr:4, sem:'Fall',  dept:'HSA', tag:'hsa' },
+];
+
+const HMC_MAJORS = {
+  cs: { name:'Computer Science', courses:[
+    { id:'cs-disc',    name:'Discrete Math',             credits:3, yr:1, sem:'Fall',   tag:'major' },
+    { id:'cs-ds',      name:'Data Structures',           credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'cs-sys',     name:'Computer Systems',          credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'cs-alg',     name:'Algorithms',                credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'cs-logic',   name:'Computability & Logic',     credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'cs-prof',    name:'Professional Practicum',    credits:1, yr:3, sem:'Fall',   tag:'major' },
+    { id:'cs-elec1',   name:'CS Elective I',             credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'cs-elec2',   name:'CS Elective II',            credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'cs-clinic1', name:'CS Clinic I',               credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'cs-clinic2', name:'CS Clinic II',              credits:3, yr:4, sem:'Spring', tag:'major' },
+  ]},
+  physics: { name:'Physics', courses:[
+    { id:'phys51',  name:'Physics 51 (E&M)',           credits:4, yr:2, sem:'Fall',   tag:'major' },
+    { id:'phys52',  name:'Physics 52 (Quantum)',       credits:4, yr:2, sem:'Spring', tag:'major' },
+    { id:'phys54',  name:'Physics 54 (Thermo)',        credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'phys64',  name:'Physics 64 (Math Methods)', credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'phys111', name:'Physics 111 (Classical)',    credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'phys116', name:'Physics 116 (Lab)',          credits:2, yr:3, sem:'Spring', tag:'major' },
+    { id:'phys117', name:'Statistical Mechanics',      credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'phys133', name:'Quantum Mechanics II',       credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'phys181', name:'Advanced Lab',               credits:2, yr:4, sem:'Fall',   tag:'major' },
+    { id:'phys199', name:'Senior Thesis',              credits:4, yr:4, sem:'Spring', tag:'major' },
+  ]},
+  math: { name:'Mathematics', courses:[
+    { id:'math-disc', name:'Discrete Math',            credits:3, yr:1, sem:'Fall',   tag:'major' },
+    { id:'math-prob', name:'Probability & Statistics', credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'math-de',   name:'Differential Equations',  credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'math-anal', name:'Real Analysis',            credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'math-alg',  name:'Abstract Algebra',         credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'math-comp', name:'Scientific Computing',     credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'math-el1',  name:'Math Elective I',          credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'math-el2',  name:'Math Elective II',         credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'math-cap',  name:'Math Clinic / Thesis',     credits:3, yr:4, sem:'Spring', tag:'major' },
+  ]},
+  chem: { name:'Chemistry', courses:[
+    { id:'chem-oc1',  name:'Organic Chemistry I',     credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'chem-oc2',  name:'Organic Chemistry II',    credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'chem-phys', name:'Physical Chemistry',      credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'chem-inorg','name':'Inorganic Chemistry',   credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'chem-bio',  name:'Biochemistry',            credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'chem-anal', name:'Chemical Analysis',       credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'chem-lab1', name:'Advanced Chem Lab I',     credits:2, yr:3, sem:'Fall',   tag:'major' },
+    { id:'chem-lab2', name:'Advanced Chem Lab II',    credits:2, yr:4, sem:'Fall',   tag:'major' },
+    { id:'chem-res',  name:'Senior Research/Thesis',  credits:4, yr:4, sem:'Spring', tag:'major' },
+  ]},
+  engr: { name:'Engineering', courses:[
+    { id:'engr-statics', name:'Statics & Dynamics',    credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'engr-circuits','name':'Circuits',            credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'engr-thermo',  name:'Thermo & Fluid Mech',  credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'engr-signals', name:'Signals & Systems',    credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'engr-controls','name':'Control Systems',    credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'engr-design',  name:'Engineering Design',   credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'engr-el1',     name:'Engr Elective I',      credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'engr-clinic1', name:'Engineering Clinic I', credits:3, yr:4, sem:'Fall',   tag:'major' },
+    { id:'engr-clinic2', name:'Engineering Clinic II',credits:3, yr:4, sem:'Spring', tag:'major' },
+  ]},
+  bio: { name:'Biology', courses:[
+    { id:'bio-cell',  name:'Cell Biology',            credits:3, yr:2, sem:'Fall',   tag:'major' },
+    { id:'bio-gen',   name:'Genetics',                credits:3, yr:2, sem:'Spring', tag:'major' },
+    { id:'bio-bioc',  name:'Biochemistry',            credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'bio-evol',  name:'Evolution',               credits:3, yr:3, sem:'Fall',   tag:'major' },
+    { id:'bio-phys',  name:'Biophysics',              credits:3, yr:3, sem:'Spring', tag:'major' },
+    { id:'bio-lab1',  name:'Advanced Bio Lab I',      credits:2, yr:3, sem:'Fall',   tag:'major' },
+    { id:'bio-lab2',  name:'Advanced Bio Lab II',     credits:2, yr:4, sem:'Fall',   tag:'major' },
+    { id:'bio-res',   name:'Senior Research',         credits:4, yr:4, sem:'Spring', tag:'major' },
+  ]},
+};
+
+function planCompleted(id) {
+  return (STATE.plan?.completed || []).includes(id);
+}
+function togglePlanCourse(id) {
+  if (!STATE.plan) STATE.plan = { major:'', completed:[] };
+  const idx = STATE.plan.completed.indexOf(id);
+  if (idx >= 0) STATE.plan.completed.splice(idx, 1);
+  else STATE.plan.completed.push(id);
+  saveCurrentUser();
+  renderPlan();
+}
+function onMajorChange() {
+  if (!STATE.plan) STATE.plan = { major:'', completed:[] };
+  STATE.plan.major = document.getElementById('plan-major').value;
+  saveCurrentUser();
+  renderPlan();
+}
+
+function renderPlan() {
+  const major = STATE.plan?.major || '';
+  const majorDef = HMC_MAJORS[major];
+  const el = document.getElementById('plan-major');
+  if (el) el.value = major;
+
+  // Core checklist
+  const coreList = document.getElementById('core-req-list');
+  if (coreList) {
+    coreList.innerHTML = HMC_CORE.map(c => {
+      const done = planCompleted(c.id);
+      return `<div class="req-row">
+        <div class="req-check${done?' done':''}" onclick="togglePlanCourse('${c.id}')">${done?'✓':''}</div>
+        <div style="flex:1;${done?'opacity:.45;text-decoration:line-through':''}">
+          <span style="font-size:12px;font-weight:600">${c.name}</span>
+          <span style="font-size:10px;color:var(--muted2);margin-left:4px">${c.dept} · ${c.credits}cr</span>
+        </div>
+      </div>`;
+    }).join('');
+    const coreDone = HMC_CORE.filter(c => planCompleted(c.id)).length;
+    document.getElementById('core-prog-label').textContent = `${coreDone}/${HMC_CORE.length}`;
+    document.getElementById('core-prog-bar').style.width = Math.round(coreDone/HMC_CORE.length*100)+'%';
+  }
+
+  // Major checklist
+  const majorCard = document.getElementById('major-req-card');
+  const majorList = document.getElementById('major-req-list');
+  if (majorCard) majorCard.style.display = majorDef ? '' : 'none';
+  if (majorDef && majorList) {
+    document.getElementById('major-req-title').textContent = majorDef.name + ' Requirements';
+    majorList.innerHTML = majorDef.courses.map(c => {
+      const done = planCompleted(c.id);
+      return `<div class="req-row">
+        <div class="req-check${done?' done':''}" onclick="togglePlanCourse('${c.id}')">${done?'✓':''}</div>
+        <div style="flex:1;${done?'opacity:.45;text-decoration:line-through':''}">
+          <span style="font-size:12px;font-weight:600">${c.name}</span>
+          <span style="font-size:10px;color:var(--muted2);margin-left:4px">Yr ${c.yr} ${c.sem} · ${c.credits}cr</span>
+        </div>
+      </div>`;
+    }).join('');
+    const majDone = majorDef.courses.filter(c => planCompleted(c.id)).length;
+    document.getElementById('major-prog-label').textContent = `${majDone}/${majorDef.courses.length}`;
+    document.getElementById('major-prog-bar').style.width = Math.round(majDone/majorDef.courses.length*100)+'%';
+  }
+
+  // 4-year grid
+  const allCourses = [...HMC_CORE, ...HMC_HSA, ...(majorDef?.courses||[])];
+  const years = [1,2,3,4];
+  const sems  = ['Fall','Spring'];
+  const grid  = document.getElementById('plan-year-grid');
+  if (!grid) return;
+  grid.innerHTML = years.map(yr => `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:800;margin-bottom:.5rem;color:var(--text)">Year ${yr}</div>
+      <div class="semester-grid">
+        ${sems.map(sem => {
+          const courses = allCourses.filter(c => c.yr===yr && c.sem===sem);
+          const chips = courses.map(c => {
+            const done = planCompleted(c.id);
+            return `<span class="course-chip ${c.tag}${done?' done':''}" onclick="togglePlanCourse('${c.id}')" title="Click to mark ${done?'incomplete':'complete'}">${done?'✓ ':''}${c.name}</span>`;
+          }).join('');
+          const credits = courses.reduce((s,c)=>s+c.credits,0);
+          return `<div class="sem-card">
+            <div class="sem-label">${sem} · ${credits}cr</div>
+            <div>${chips || '<span style="font-size:11px;color:var(--muted)">Add electives</span>'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+let _hsCache = [];
+async function loadHyperschedule() {
+  if (_hsCache.length) return _hsCache;
+  try {
+    const r = await fetch('https://hyperschedule.io/api/v4/sections', { headers:{'Accept':'application/json'} });
+    if (!r.ok) throw new Error('status '+r.status);
+    const data = await r.json();
+    const sections = Array.isArray(data) ? data : (data.sections || data.data || []);
+    _hsCache = sections.map(s => ({
+      code: s.course?.courseCode || s.courseCode || '',
+      name: s.course?.courseName || s.courseName || s.title || '',
+      dept: s.course?.courseSectionCode?.split(' ')[0] || '',
+      instructors: (s.instructors||[]).map(i=>i.name||i).join(', '),
+    })).filter(s => s.name);
+    return _hsCache;
+  } catch(e) {
+    return [];
+  }
+}
+async function searchHyperschedule() {
+  const q = document.getElementById('hs-search').value.trim().toLowerCase();
+  const el = document.getElementById('hs-results');
+  if (!q) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="font-size:12px;color:var(--muted2);padding:4px">Searching…</div>';
+  const courses = await loadHyperschedule();
+  if (!courses.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--muted2);padding:4px">
+      Could not reach Hyperschedule API (CORS).
+      <a href="https://hyperschedule.io" target="_blank" style="color:var(--gold)">Browse directly →</a>
+    </div>`;
+    return;
+  }
+  const results = courses.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)).slice(0,12);
+  if (!results.length) { el.innerHTML = '<div style="font-size:12px;color:var(--muted2);padding:4px">No courses found.</div>'; return; }
+  el.innerHTML = results.map(c => `
+    <div class="hs-result">
+      <div style="font-size:12px;font-weight:700">${c.code} — ${c.name}</div>
+      ${c.instructors ? `<div style="font-size:10px;color:var(--muted2);margin-top:2px">${c.instructors}</div>` : ''}
+    </div>`).join('');
 }
 
 async function renderDashboard() {
