@@ -250,7 +250,10 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 .semester-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
 .sem-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem}
 .sem-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:.6rem}
-.course-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;margin:2px;cursor:pointer;border:1px solid transparent;transition:all .12s}
+.course-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;margin:2px;cursor:grab;border:1px solid transparent;transition:all .12s;user-select:none}
+.course-chip.dragging{opacity:.35;cursor:grabbing}
+.sem-card{transition:background .12s,border-color .12s}
+.sem-card.drag-over{background:var(--gold-dim) !important;border-color:var(--gold-border) !important}
 .course-chip.core{background:var(--gold-dim);border-color:var(--gold-border);color:var(--gold)}
 .course-chip.major{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3);color:var(--blue)}
 .course-chip.hsa{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.3);color:var(--purple)}
@@ -2263,6 +2266,9 @@ function renderPlan() {
 
   // 4-year grid
   const allCourses = [...HMC_CORE, ...HMC_HSA, ...(majorDef?.courses||[])];
+  const positions  = STATE.plan?.positions || {};
+  const getPos = c => positions[c.id] || { yr: c.yr, sem: c.sem };
+
   const years = [1,2,3,4];
   const sems  = ['Fall','Spring'];
   const grid  = document.getElementById('plan-year-grid');
@@ -2272,19 +2278,61 @@ function renderPlan() {
       <div style="font-size:13px;font-weight:800;margin-bottom:.5rem;color:var(--text)">Year ${yr}</div>
       <div class="semester-grid">
         ${sems.map(sem => {
-          const courses = allCourses.filter(c => c.yr===yr && c.sem===sem);
+          const courses = allCourses.filter(c => { const p=getPos(c); return p.yr===yr && p.sem===sem; });
           const chips = courses.map(c => {
             const done = planCompleted(c.id);
-            return `<span class="course-chip ${c.tag}${done?' done':''}" onclick="togglePlanCourse('${c.id}')" title="Click to mark ${done?'incomplete':'complete'}">${done?'✓ ':''}${c.name}</span>`;
+            const safeId = c.id.replace(/'/g,"\\'");
+            return `<span class="course-chip ${c.tag}${done?' done':''}"
+              draggable="true"
+              ondragstart="planDragStart(event,'${safeId}')"
+              ondragend="planDragEnd(event)"
+              onclick="togglePlanCourse('${safeId}')"
+              title="Drag to move · Click to mark ${done?'incomplete':'complete'}"
+            >${done?'✓ ':''}${c.name}</span>`;
           }).join('');
           const credits = courses.reduce((s,c)=>s+c.credits,0);
-          return `<div class="sem-card">
-            <div class="sem-label">${sem} · ${credits}cr</div>
-            <div>${chips || '<span style="font-size:11px;color:var(--muted)">Add electives</span>'}</div>
+          return `<div class="sem-card"
+            ondragover="planDragOver(event)"
+            ondragleave="planDragLeave(event)"
+            ondrop="planDrop(event,${yr},'${sem}')">
+            <div class="sem-label">${sem}${credits?' · '+credits+'cr':''}</div>
+            <div style="min-height:28px">${chips || '<span style="font-size:11px;color:var(--muted)">Drop courses here</span>'}</div>
           </div>`;
         }).join('')}
       </div>
     </div>`).join('');
+}
+
+let _planDragId = null;
+function planDragStart(e, id) {
+  _planDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  setTimeout(() => e.target.classList.add('dragging'), 0);
+}
+function planDragEnd(e) {
+  e.target.classList.remove('dragging');
+  document.querySelectorAll('.sem-card').forEach(c => c.classList.remove('drag-over'));
+}
+function planDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function planDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget))
+    e.currentTarget.classList.remove('drag-over');
+}
+function planDrop(e, yr, sem) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = _planDragId || e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  _planDragId = null;
+  if (!STATE.plan.positions) STATE.plan.positions = {};
+  STATE.plan.positions[id] = { yr, sem };
+  saveCurrentUser();
+  renderPlan();
 }
 
 let _hsCache = [];
