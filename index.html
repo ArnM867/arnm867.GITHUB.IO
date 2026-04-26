@@ -283,6 +283,7 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 </style>
 </head>
 <body>
+<div id="err-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;padding:8px 16px;font-size:12px;font-weight:700;font-family:monospace;cursor:pointer" onclick="this.style.display='none'">Error (click to dismiss)</div>
 
 <!-- ═══════════════════════════════════════════
      NAV (hidden on login)
@@ -521,7 +522,7 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
             <div id="core-req-list"></div>
           </div>
         </div>
-        <div class="card" style="margin-top:.75rem" id="major-req-card" style="display:none">
+        <div class="card" id="major-req-card" style="margin-top:.75rem;display:none">
           <div class="card-header">
             <span class="card-title" id="major-req-title">Major Requirements</span>
             <span id="major-prog-label" style="font-size:12px;font-weight:700;color:var(--blue)">0/0</span>
@@ -692,6 +693,26 @@ input[type=date]:focus,input[type=time]:focus,input[type=number]:focus{border-co
 
 <script src="config.js"></script>
 <script>
+// ═══════════════════════════════════════════
+// ERROR HANDLING
+// ═══════════════════════════════════════════
+window.onerror = function(msg, src, line, col, err) {
+  const banner = document.getElementById('err-banner');
+  if (banner) {
+    banner.textContent = `JS Error: ${msg} (${src?.split('/').pop()}:${line})`;
+    banner.style.display = 'block';
+  }
+  console.error('MuddMate error:', msg, src, line, col, err);
+};
+window.onunhandledrejection = function(e) {
+  const banner = document.getElementById('err-banner');
+  if (banner) {
+    banner.textContent = `Unhandled error: ${e.reason?.message || e.reason}`;
+    banner.style.display = 'block';
+  }
+  console.error('MuddMate unhandled rejection:', e.reason);
+};
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -957,7 +978,8 @@ function loadUserToState(user) {
   STATE.typeWeights       = { ...DEFAULT_TYPE_WEIGHTS, ...(user.typeWeights || {}) };
   STATE.grammar           = user.grammar || {};
   STATE.customTheme    = user.customTheme || null;
-  STATE.plan           = user.plan || { major:'', completed:[] };
+  const rawPlan = user.plan || {};
+  STATE.plan = { major: rawPlan.major || '', completed: rawPlan.completed || [], positions: rawPlan.positions || {} };
   STATE.gpaData        = user.gpaData || {};
   STATE.hsaCourses     = user.hsaCourses || [];
   STATE.streak         = user.streak || 0;
@@ -2377,9 +2399,11 @@ async function searchHyperschedule() {
 }
 
 async function renderDashboard() {
+  try {
   updateNavUser();
 
-  document.getElementById('dash-course-list').innerHTML = STATE.courses.map(c => `
+  const courseListEl = document.getElementById('dash-course-list');
+  if (courseListEl) courseListEl.innerHTML = STATE.courses.map(c => `
     <div class="course-sidebar-row" onclick="openCourseDetail('${c.id}')">
       <div class="cdot-name"><div class="cdot" style="background:${c.color}"></div>${c.name}</div>
       <div style="display:flex;align-items:center;gap:6px">
@@ -2389,7 +2413,8 @@ async function renderDashboard() {
       </div>
     </div>`).join('');
 
-  document.getElementById('dash-tree-list').innerHTML = STATE.courses.map(c => `
+  const treeListEl = document.getElementById('dash-tree-list');
+  if (treeListEl) treeListEl.innerHTML = STATE.courses.map(c => `
     <div class="course-sidebar-row" onclick="openCourseDetail('${c.id}')">
       <div class="cdot-name"><div class="cdot" style="background:${c.color}"></div>${c.name}</div>
       <span style="color:var(--gold);font-size:13px">→</span>
@@ -2472,6 +2497,11 @@ async function renderDashboard() {
   renderExamCountdown();
   renderStreakBadge();
   updateTaskProgress();
+  } catch(err) {
+    const tasksEl = document.getElementById('dash-tasks');
+    if (tasksEl) tasksEl.innerHTML = `<div class="loading-msg" style="color:var(--red)">Dashboard error: ${err.message}<br><small style="opacity:.7">Check browser console (F12) for details.</small></div>`;
+    console.error('renderDashboard error:', err);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2692,21 +2722,28 @@ async function openCourseDetail(courseId) {
 
 // ═══ INIT ═══
 (function() {
-  let saved = null;
-  try { saved = localStorage.getItem('muddmate_session'); } catch(e) {}
-  if (saved) {
-    const user = getUser(saved);
-    if (user) {
-      STATE.currentUser = saved;
-      loadUserToState(user);
-      updateNavUser();
-      showPage('dashboard');
-      return;
+  try {
+    let saved = null;
+    try { saved = localStorage.getItem('muddmate_session'); } catch(e) {}
+    if (saved) {
+      const user = getUser(saved);
+      if (user) {
+        STATE.currentUser = saved;
+        loadUserToState(user);
+        updateNavUser();
+        showPage('dashboard');
+        return;
+      }
+      // Session points to a user that no longer exists — clean it up
+      try { localStorage.removeItem('muddmate_session'); } catch(e) {}
     }
-    // Session points to a user that no longer exists — clean it up
-    try { localStorage.removeItem('muddmate_session'); } catch(e) {}
+    showPage('login');
+  } catch(err) {
+    const banner = document.getElementById('err-banner');
+    if (banner) { banner.textContent = 'Init error: ' + err.message; banner.style.display = 'block'; }
+    console.error('MuddMate init error:', err);
+    try { showPage('login'); } catch(e2) {}
   }
-  showPage('login');
 })();
 </script>
 
